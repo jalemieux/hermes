@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Dashboard - Hermes</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="/static/style.css">
+  </head>
+  <body class="min-h-screen bg-gray-50">
+    <header class="border-b border-gray-200 bg-white">
+      <div class="mx-auto flex max-w-7xl items-center justify-between px-4 py-4">
+        <a href="/" class="flex items-center space-x-2">
+          <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-8 w-8 text-gray-900">
+            <path d="M12 3c.132 0 .263 0 .393 0a7.5 7.5 0 0 0 7.92 12.446a9 9 0 1 1 -8.313-12.454z"></path>
+          </svg>
+          <span class="text-xl font-bold">Hermes</span>
+        </a>
+        <nav class="flex items-center space-x-4">
+          <a href="/logout" class="rounded-lg px-4 py-2 font-medium transition-colors bg-gray-100 text-gray-900 hover:bg-gray-200">
+            Logout
+          </a>
+        </nav>
+      </div>
+    </header>
+
+    <main class="mx-auto max-w-7xl px-4 py-8">
+      <div class="grid grid-cols-1 gap-8 lg:grid-cols-3">
+        <div class="col-span-2 space-y-6">
+          <div class="rounded-lg border border-gray-200 bg-white p-6">
+            <h2 class="text-xl font-semibold">Your Digest Email</h2>
+            <div class="mt-4 flex items-center gap-4">
+              <code class="rounded bg-gray-100 px-3 py-1">{{ email_address }}</code>
+              <button onclick="copyToClipboard('{{ email_address }}')" class="rounded-lg px-4 py-2 font-medium transition-colors bg-gray-100 text-gray-900 hover:bg-gray-200">
+                Copy
+              </button>
+            </div>
+            <p class="mt-2 text-sm text-gray-600">
+              Forward your newsletters to this address or use it to subscribe to news sources.
+            </p>
+          </div>
+
+          <div class="rounded-lg border border-gray-200 bg-white p-6">
+            <h2 class="text-xl font-semibold">Recent Summaries</h2>
+            <div class="mt-4 divide-y divide-gray-200">
+              {% for summary in summaries %}
+              <div class="flex items-center justify-between py-4">
+                <div>
+                  <h3 class="font-medium">{{ summary.title }}</h3>
+                  <p class="text-sm text-gray-600">{{ summary.date }}</p>
+                </div>
+                <div class="flex gap-2">
+                  <a href="{{ summary.read_url }}" class="rounded-lg px-4 py-2 font-medium transition-colors bg-gray-100 text-gray-900 hover:bg-gray-200">
+                    Read
+                  </a>
+                  {% if summary.has_audio %}
+                  <a href="{{ summary.audio_url }}" class="rounded-lg px-4 py-2 font-medium transition-colors bg-gray-100 text-gray-900 hover:bg-gray-200">
+                    Listen
+                  </a>
+                  {% endif %}
+                </div>
+              </div>
+              {% endfor %}
+            </div>
+          </div>
+        </div>
+
+        <div class="space-y-6">
+          <div class="rounded-lg border border-gray-200 bg-white p-6">
+            <h2 class="text-xl font-semibold">Digest Settings</h2>
+            <form action="/settings/update" method="POST" class="mt-4 space-y-4">
+              <div>
+                <label class="block text-sm font-medium text-gray-700">Frequency</label>
+                <select name="frequency" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
+                  <option value="daily" {% if frequency == 'daily' %}selected{% endif %}>Daily</option>
+                  <option value="weekly" {% if frequency == 'weekly' %}selected{% endif %}>Weekly</option>
+                  <option value="monthly" {% if frequency == 'monthly' %}selected{% endif %}>Monthly</option>
+                </select>
+              </div>
+              <button type="submit" class="w-full rounded-lg px-4 py-2 font-medium transition-colors bg-gray-900 text-white hover:bg-gray-800">
+                Save Changes
+              </button>
+            </form>
+          </div>
+
+          <div class="rounded-lg border border-gray-200 bg-white p-6">
+            <h2 class="text-xl font-semibold">Quick Actions</h2>
+            <div class="mt-4 space-y-2">
+              <a href="/sources" class="flex w-full items-center rounded-lg border border-gray-300 px-4 py-2 font-medium transition-colors hover:bg-gray-50">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-2 h-4 w-4">
+                  <rect width="20" height="16" x="2" y="4" rx="2"></rect>
+                  <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"></path>
+                </svg>
+                Manage Sources
+              </a>
+              <a href="/schedule" class="flex w-full items-center rounded-lg border border-gray-300 px-4 py-2 font-medium transition-colors hover:bg-gray-50">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-2 h-4 w-4">
+                  <rect width="18" height="18" x="3" y="4" rx="2" ry="2"></rect>
+                  <line x1="16" x2="16" y1="2" y2="6"></line>
+                  <line x1="8" x2="8" y1="2" y2="6"></line>
+                  <line x1="3" x2="21" y1="10" y2="10"></line>
+                </svg>
+                Delivery Schedule
+              </a>
+              <a href="/preferences" class="flex w-full items-center rounded-lg border border-gray-300 px-4 py-2 font-medium transition-colors hover:bg-gray-50">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-2 h-4 w-4">
+                  <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"></path>
+                  <circle cx="12" cy="12" r="3"></circle>
+                </svg>
+                Preferences
+              </a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <script>
+      function copyToClipboard(text) {
+        navigator.clipboard.writeText(text).then(() => {
+          alert('Email address copied to clipboard!');
+        });
+      }
+    </script>
+  </body>
+</html>
