@@ -4,37 +4,64 @@
 
 {% block content %}
 <main class="mx-auto max-w-7xl px-4 py-8">
-    <div class="grid grid-cols-1 gap-8 lg:grid-cols-3">
-        <div class="col-span-2 space-y-6">
-            <div class="rounded-lg border border-gray-200 bg-white p-6">
-                <h2 class="text-xl font-semibold">Your Digest Email</h2>
-                <div class="mt-4 flex items-center gap-4">
-                    <code class="rounded bg-gray-100 px-3 py-1">{{ email_address }}</code>
-                    <button onclick="copyToClipboard('{{ email_address }}')" class="rounded-lg px-4 py-2 font-medium transition-colors bg-gray-100 text-gray-900 hover:bg-gray-200">
-                        Copy
-                    </button>
-                </div>
-                <p class="mt-2 text-sm text-gray-600">
-                    Forward your newsletters to this address or use it to subscribe to news sources.
-                </p>
-            </div>
 
+    <div class="grid grid-cols-1 gap-8 lg:grid-cols-2">
+        <div class="space-y-6">
+            
             <div class="rounded-lg border border-gray-200 bg-white p-6">
-                <h2 class="text-xl font-semibold">Recent Summaries</h2>
+                <h2 class="text-xl font-semibold">Catch Up</h2>
+                <p class="mt-2 text-sm text-gray-600">If you don't feel like waiting, you can generate a new summary on demand. It will cover the latest news since your last update.</p>
+                {% with messages = get_flashed_messages(with_categories=true) %}
+                    {% if messages %}
+                        {% for category, message in messages %}
+                            <div class="mb-4 p-4 rounded-lg {% if category == 'error' %}bg-red-50 text-red-600{% else %}bg-green-50 text-green-600{% endif %}">
+                                {{ message }}
+                            </div>
+                        {% endfor %}
+                    {% endif %}
+                {% endwith %}
+                
+                <div id="error-message" class="hidden mb-4 p-4 rounded-lg bg-red-50 text-red-600"></div>
+                
+                <div class="mt-4">                      
+
+                    <form id="generate-summary-form" action="{{ url_for('main.generate_summary') }}" method="POST">
+                        <button id="generate-button" type="submit" class="rounded-lg px-4 py-2 font-medium transition-colors bg-gray-900 text-white hover:bg-gray-800 flex items-center">
+                            <span>Generate New Summary</span>
+                            <svg id="loading-spinner" class="hidden ml-2 animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
+                        </button>
+                    </form>
+                </div>
+            </div>
+            <div class="rounded-lg border border-gray-200 bg-white p-6">
+                <div class="flex items-center justify-between">
+                    <h2 class="text-xl font-semibold">Summaries</h2>
+                    
+                </div>
                 <div class="mt-4 divide-y divide-gray-200">
                     {% for summary in summaries %}
                     <div class="flex items-center justify-between py-4">
                         <div>
                             <h3 class="font-medium">{{ summary.title }}</h3>
-                            <p class="text-sm text-gray-600">{{ summary.date }}</p>
+                            <p class="text-sm text-gray-600">{{ summary.start_date }} - {{ summary.end_date }}</p>
                         </div>
                         <div class="flex gap-2">
-                            <a href="{{ summary.read_url }}" class="rounded-lg px-4 py-2 font-medium transition-colors bg-gray-100 text-gray-900 hover:bg-gray-200">
-                                Read
+                            <a href="{{ summary.read_url }}" class="rounded-lg p-2 font-medium transition-colors bg-gray-100 text-gray-900 hover:bg-gray-200" title="Read">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path>
+                                    <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path>
+                                </svg>
                             </a>
                             {% if summary.has_audio %}
-                            <a href="{{ summary.audio_url }}" class="rounded-lg px-4 py-2 font-medium transition-colors bg-gray-100 text-gray-900 hover:bg-gray-200">
-                                Listen
+                            <a href="{{ summary.audio_url }}" class="rounded-lg p-2 font-medium transition-colors bg-gray-100 text-gray-900 hover:bg-gray-200" title="Listen">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+                                    <path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+                                    <path d="M19.07 4.93a10 10 0 0 1 0 14.14"></path>
+                                </svg>
                             </a>
                             {% endif %}
                         </div>
@@ -46,6 +73,21 @@
 
         <div class="space-y-6">
             <div class="rounded-lg border border-gray-200 bg-white p-6">
+                <h2 class="text-xl font-semibold">Your Digest Email</h2>
+                <div class="mt-4 flex items-center gap-4 relative">
+                    <code class="rounded bg-gray-100 px-2 py-0.5 text-sm">{{ mailslurp_email_address }}</code>
+                    <button onclick="copyToClipboard('{{ mailslurp_email_address }}')" class="rounded-lg px-4 py-2 font-medium transition-colors bg-gray-100 text-gray-900 hover:bg-gray-200">
+                        Copy
+                    </button>
+                    <div id="toast" class="absolute left-full ml-2 hidden rounded-md bg-gray-800/90 px-3 py-1 text-xs text-white shadow-sm transition-all duration-300 opacity-0 whitespace-nowrap">
+                        Copied
+                    </div>
+                </div>
+                <p class="mt-2 text-sm text-gray-600">
+                    Forward your newsletters to this address or use it to subscribe to news sources.
+                </p>
+            </div>
+            <div class="rounded-lg border border-gray-200 bg-white p-6">
                 <h2 class="text-xl font-semibold">Digest Settings</h2>
                 <form action="/settings/update" method="POST" class="mt-4 space-y-4">
                     <div>
@@ -56,13 +98,13 @@
                             <option value="monthly" {% if frequency == 'monthly' %}selected{% endif %}>Monthly</option>
                         </select>
                     </div>
-                    <button type="submit" class="w-full rounded-lg px-4 py-2 font-medium transition-colors bg-gray-900 text-white hover:bg-gray-800">
+                    <button type="submit" class="w-full rounded-lg px-4 py-2 font-medium transition-colors bg-gray-400 text-white hover:bg-gray-800">
                         Save Changes
                     </button>
                 </form>
             </div>
 
-            <div class="rounded-lg border border-gray-200 bg-white p-6">
+            <!-- <div class="rounded-lg border border-gray-200 bg-white p-6">
                 <h2 class="text-xl font-semibold">Quick Actions</h2>
                 <div class="mt-4 space-y-2">
                     <a href="/sources" class="flex w-full items-center rounded-lg border border-gray-300 px-4 py-2 font-medium transition-colors hover:bg-gray-50">
@@ -89,16 +131,104 @@
                         Preferences
                     </a>
                 </div>
-            </div>
+            </div> -->
+
+            <!-- <div class="rounded-lg border border-gray-200 bg-white p-6">
+                <h2 class="text-xl font-semibold">Gmail Integration</h2>
+                {% if current_user.google_token %}
+                    <p class="mt-2 text-sm text-gray-600">Gmail access is authorized</p>
+                    <a href="{{ url_for('main.authorize_gmail') }}" class="mt-4 inline-block rounded-lg px-4 py-2 font-medium transition-colors bg-gray-100 text-gray-900 hover:bg-gray-200">
+                        Reauthorize Gmail Access
+                    </a>
+                {% else %}
+                    <p class="mt-2 text-sm text-gray-600">Connect your Gmail account to start analyzing your newsletters</p>
+                    <a href="{{ url_for('main.authorize_gmail') }}" class="mt-4 inline-block rounded-lg px-4 py-2 font-medium transition-colors bg-gray-900 text-white hover:bg-gray-800">
+                        Connect Gmail Account
+                    </a>
+                {% endif %}
+            </div> -->
         </div>
     </div>
 </main>
-{% endblock %}
 
 <script>
     function copyToClipboard(text) {
         navigator.clipboard.writeText(text).then(() => {
-            alert('Email address copied to clipboard!');
+            const toast = document.getElementById('toast');
+            toast.classList.remove('hidden');
+            requestAnimationFrame(() => {
+                toast.classList.add('opacity-100');
+            });
+            
+            setTimeout(() => {
+                toast.classList.remove('opacity-100');
+                setTimeout(() => {
+                    toast.classList.add('hidden');
+                }, 300);
+            }, 1500);
         });
     }
+
+    document.getElementById('generate-summary-form').addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        const button = document.getElementById('generate-button');
+        const spinner = document.getElementById('loading-spinner');
+        const errorMessage = document.getElementById('error-message');
+        
+        // Disable button and show spinner
+        button.disabled = true;
+        button.classList.add('bg-gray-500');
+        button.classList.remove('hover:bg-gray-800');
+        spinner.classList.remove('hidden');
+        errorMessage.classList.add('hidden');
+        
+        fetch(this.action, {
+            method: 'POST',
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                'Accept': 'application/json'
+            },
+            credentials: 'same-origin'
+        })
+        .then(response => response.json())
+        .then(data => {
+            // Create and show flash message
+            const flashDiv = document.createElement('div');
+            flashDiv.className = `mb-4 p-4 rounded-lg ${data.status === 'success' ? 'bg-green-50 text-green-600' : 'bg-red-50 text-red-600'}`;
+            flashDiv.textContent = data.message;
+            
+            // Insert the flash message at the top of the form container
+            const formContainer = this.parentElement;
+            formContainer.insertBefore(flashDiv, formContainer.firstChild);
+            
+            if (data.status === 'success') {
+                // Immediately reload the page on success
+                window.location.reload();
+            } else {
+                // Only show flash message temporarily and reset button if there was an error
+                setTimeout(() => {
+                    flashDiv.remove();
+                }, 3000);
+                
+                // Reset button state if there was an error
+                button.disabled = false;
+                button.classList.remove('bg-gray-500');
+                button.classList.add('hover:bg-gray-800');
+                spinner.classList.add('hidden');
+            }
+        })
+        .catch(error => {
+            // Show error message
+            errorMessage.textContent = 'An unexpected error occurred. Please try again.';
+            errorMessage.classList.remove('hidden');
+            
+            // Reset button state
+            button.disabled = false;
+            button.classList.remove('bg-gray-500');
+            button.classList.add('hover:bg-gray-800');
+            spinner.classList.add('hidden');
+        });
+    });
 </script>
+{% endblock %}

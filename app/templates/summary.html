@@ -1,0 +1,99 @@
+{% extends "base.html" %}
+
+{% block title %}{{ summary.title }} - Hermes{% endblock %}
+
+{% block content %}
+<main class="mx-auto max-w-3xl px-4 py-8">
+    <div class="space-y-6">
+        <!-- Header -->
+        <div class="border-b border-gray-200 pb-6">
+            <div class="flex items-center justify-between">
+                <h1 class="text-2xl font-bold">{{ summary.title }}</h1>
+                {% if summary.has_audio %}
+                <a href="{{ url_for('main.listen_summary', summary_id=summary.id) }}" 
+                   class="rounded-lg p-2 font-medium transition-colors bg-gray-100 text-gray-900 hover:bg-gray-200"
+                   title="Listen">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+                        <path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+                        <path d="M19.07 4.93a10 10 0 0 1 0 14.14"></path>
+                    </svg>
+                </a>
+                {% endif %}
+            </div>
+            <div class="mt-2 flex items-center gap-4 text-sm text-gray-600">
+                <span>{{ summary.start_date }} - {{ summary.end_date }}</span>
+                <span>•</span>
+                <span>{{ summary.source_count }} sources</span>
+            </div>
+        </div>
+
+        <!-- Summary Content -->
+        <div class="prose prose-gray max-w-none">
+            {% if summary.key_points %}
+            <section class="mb-8">
+                <h2 class="text-xl font-semibold mb-4">Key Points</h2>
+                <ul class="space-y-2">
+                    {% for point in summary.key_points %}
+                    <li class="flex items-start">
+                        <span class="mr-2">•</span>
+                        <span>{{ point }}</span>
+                    </li>
+                    {% endfor %}
+                </ul>
+            </section>
+            {% endif %}
+
+            {% if summary.sections %}
+            <div class="space-y-8">
+                {% for section in summary.sections %}
+                <section>
+                    <h2 class="text-xl font-semibold mb-4">{{ section.title }}</h2>
+                    <div class="space-y-4">
+                        {{ section.content | safe }}
+                    </div>
+                </section>
+                {% endfor %}
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Sources -->
+        {% if summary.sources %}
+        <section class="border-t border-gray-200 pt-6">
+            <h2 class="text-xl font-semibold mb-4">Sources</h2>
+            <div class="space-y-4">
+                {% for source in summary.sources %}
+                <div class="rounded-lg border border-gray-200 p-4">
+                    <h3 class="font-medium">{{ source.title }}</h3>
+                    <p class="text-sm text-gray-600 mt-1">{{ source.publication }} • {{ source.date }}</p>
+                    {% if source.url %}
+                    <a href="{{ source.url }}" 
+                       target="_blank" 
+                       rel="noopener noreferrer" 
+                       class="text-sm text-blue-600 hover:text-blue-800 mt-2 inline-flex items-center">
+                        Read original
+                        <svg class="w-4 h-4 ml-1" viewBox="0 0 20 20" fill="currentColor">
+                            <path fill-rule="evenodd" d="M5.22 14.78a.75.75 0 001.06 0l7.22-7.22v5.69a.75.75 0 001.5 0v-7.5a.75.75 0 00-.75-.75h-7.5a.75.75 0 000 1.5h5.69l-7.22 7.22a.75.75 0 000 1.06z" clip-rule="evenodd" />
+                        </svg>
+                    </a>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            </div>
+        </section>
+        {% endif %}
+
+        <!-- Navigation -->
+        <div class="border-t border-gray-200 pt-6">
+            <a href="{{ url_for('main.dashboard') }}" 
+               class="inline-flex items-center text-gray-600 hover:text-gray-900">
+                <svg class="w-4 h-4 mr-2" viewBox="0 0 20 20" fill="currentColor">
+                    <path fill-rule="evenodd" d="M17 10a.75.75 0 01-.75.75H5.612l4.158 3.96a.75.75 0 11-1.04 1.08l-5.5-5.25a.75.75 0 010-1.08l5.5-5.25a.75.75 0 111.04 1.08L5.612 9.25H16.25A.75.75 0 0117 10z" clip-rule="evenodd" />
+                </svg>
+                Back to Dashboard
+            </a>
+        </div>
+    </div>
+</main>
+{% endblock %} 

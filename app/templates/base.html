@@ -17,7 +17,13 @@
                 <span class="text-xl font-bold">Hermes</span>
             </a>
             
-            <div class="flex items-center space-x-4">
+            <button type="button" class="md:hidden" onclick="toggleMobileMenu()">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
+                </svg>
+            </button>
+
+            <div class="hidden md:flex items-center space-x-4">
                 {% if current_user.is_authenticated %}
                     <a href="{{ url_for('main.dashboard') }}" class="text-sm font-medium text-gray-900 hover:underline">Dashboard</a>
                     <a href="{{ url_for('main.signout') }}" class="rounded-lg bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-gray-800">Sign Out</a>
@@ -27,35 +33,31 @@
                 {% endif %}
             </div>
         </div>
+
+        <div id="mobile-menu" class="hidden md:hidden border-t border-gray-200">
+            <div class="space-y-2 px-4 py-4">
+                {% if current_user.is_authenticated %}
+                    <a href="{{ url_for('main.dashboard') }}" class="block text-sm font-medium text-gray-900 hover:underline">Dashboard</a>
+                    <a href="{{ url_for('main.signout') }}" class="block w-full rounded-lg bg-gray-900 px-4 py-2 text-center text-sm font-medium text-white hover:bg-gray-800">Sign Out</a>
+                {% else %}
+                    <a href="{{ url_for('main.signin') }}" class="block text-sm font-medium text-gray-900 hover:underline">Sign In</a>
+                    <a href="{{ url_for('main.signup') }}" class="block w-full rounded-lg bg-gray-900 px-4 py-2 text-center text-sm font-medium text-white hover:bg-gray-800">Sign Up</a>
+                {% endif %}
+            </div>
+        </div>
     </nav>
     
-    {% with messages = get_flashed_messages(with_categories=true) %}
-        {% if messages %}
-            <div id="flash-messages" class="fixed top-4 right-4 z-50 space-y-2">
-                {% for category, message in messages %}
-                    <div class="rounded-lg p-4 text-sm shadow-lg {% if category == 'error' %}bg-red-100 text-red-700{% else %}bg-green-100 text-green-700{% endif %} flex items-center justify-between">
-                        <span>{{ message }}</span>
-                        <button onclick="this.parentElement.remove()" class="ml-4 text-current hover:opacity-75">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                                <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd" />
-                            </svg>
-                        </button>
-                    </div>
-                {% endfor %}
-            </div>
-            <script>
-                setTimeout(() => {
-                    const messages = document.getElementById('flash-messages');
-                    if (messages) {
-                        messages.remove();
-                    }
-                }, 5000);
-            </script>
-        {% endif %}
-    {% endwith %}
+   
     
     <div class="container mt-4">
         {% block content %}{% endblock %}
     </div>
+
+    <script>
+        function toggleMobileMenu() {
+            const mobileMenu = document.getElementById('mobile-menu');
+            mobileMenu.classList.toggle('hidden');
+        }
+    </script>
 </body>
 </html>

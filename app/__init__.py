@@ -2,6 +2,7 @@ from flask import Flask
 from flask_login import LoginManager
 from config import Config
 from app.models import db, User
+import os
 
 login_manager = LoginManager()
 
@@ -20,6 +21,8 @@ def create_app():
     
     # Create database tables
     with app.app_context():
+        if os.getenv('RESET_DB') == 'true':
+            db.drop_all()
         db.create_all()
     
     # Register blueprints
