@@ -10,12 +10,12 @@ db = SQLAlchemy()
 class User(UserMixin, db.Model):
     id = db.Column(db.Integer, primary_key=True)
     email = db.Column(db.String(120), unique=True, nullable=False)
-    password_hash = db.Column(db.String(128))
+    password_hash = db.Column(db.Text)
     digest_frequency = db.Column(db.String(20), default='daily')
     
     # Add Google OAuth fields
-    google_token = db.Column(db.String(500))
-    google_refresh_token = db.Column(db.String(500))
+    google_token = db.Column(db.Text)
+    google_refresh_token = db.Column(db.Text)
     google_token_expiry = db.Column(db.DateTime)
     
     # Add MailSlurp fields
@@ -121,8 +121,8 @@ class Source(db.Model):
 class Email(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
-    unique_identifier = db.Column(db.String(100), unique=True, nullable=False)
-    name = db.Column(db.String(500), nullable=False)  # Newsletter name
+    unique_identifier = db.Column(db.Text, unique=True, nullable=False)
+    name = db.Column(db.Text, nullable=False)  # Newsletter name
     email_date = db.Column(db.DateTime, nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     

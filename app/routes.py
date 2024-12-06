@@ -56,6 +56,7 @@ def signup():
         
         mailbox_accessor = MailboxAccessor()
         inbox_email_address, inbox_id = mailbox_accessor.create_mailbox()
+        mailbox_accessor.create_forwarder(inbox_id, user.email)
         
         user.mailslurp_email_address = inbox_email_address
         user.mailslurp_inbox_id = inbox_id
@@ -64,9 +65,10 @@ def signup():
             db.session.add(user)
             db.session.commit()
             login_user(user)
-            flash('Account created successfully!', 'success')
+            #flash('Account created successfully!', 'success')
             return redirect(url_for('main.dashboard'))
         except Exception as e:
+            current_app.logger.error(f"Error creating user: {e}")
             db.session.rollback()
             flash('An error occurred. Please try again.', 'error')
             return redirect(url_for('main.signup'))
@@ -105,7 +107,7 @@ def signin():
 @login_required
 def signout():
     logout_user()
-    flash('Successfully signed out', 'success')
+    #flash('Successfully signed out', 'success')
     return redirect(url_for('main.index'))
 
 @main.route('/dashboard')

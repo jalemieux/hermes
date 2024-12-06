@@ -82,8 +82,16 @@ def re_generate_summary_audio(summary_id):
 if __name__ == '__main__':
     #app.run(debug=True)
     with app.app_context():
+        # users = User.query.all()
+        # for user in users:
+        #     print(user.email)
+        # user = User(email="test@example.com", password_hash="password123")
+        # db.session.add(user)
+        # db.session.commit()
+        #print(f"Created user with id: {user.id}")
+        db.create_all()
         #create_user_mailbox(1)
         #re_generate_summary(3)
         #eleven_labs_synthesize_summary(3)
         #re_generate_summary_audio(1)
-        test_email_forwarder(1)
+        #test_email_forwarder(1)
