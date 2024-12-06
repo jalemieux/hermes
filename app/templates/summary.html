@@ -9,17 +9,27 @@
         <div class="border-b border-gray-200 pb-6">
             <div class="flex items-center justify-between">
                 <h1 class="text-2xl font-bold">{{ summary.title }}</h1>
-                {% if summary.has_audio %}
-                <a href="{{ url_for('main.listen_summary', summary_id=summary.id) }}" 
-                   class="rounded-lg p-2 font-medium transition-colors bg-gray-100 text-gray-900 hover:bg-gray-200"
-                   title="Listen">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
-                        <path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path>
-                        <path d="M19.07 4.93a10 10 0 0 1 0 14.14"></path>
-                    </svg>
-                </a>
-                {% endif %}
+                <div class="flex items-center gap-2">
+                    {% if summary.has_audio %}
+                    <a href="{{ url_for('main.listen_summary', summary_id=summary.id) }}" 
+                       class="rounded-lg p-2 font-medium transition-colors bg-gray-100 text-gray-900 hover:bg-gray-200"
+                       title="Listen">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+                            <path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+                            <path d="M19.07 4.93a10 10 0 0 1 0 14.14"></path>
+                        </svg>
+                    </a>
+                    {% endif %}
+                    <a href="{{ url_for('main.summary_emails', summary_id=summary.id) }}" 
+                       class="rounded-lg p-2 font-medium transition-colors bg-gray-100 text-gray-900 hover:bg-gray-200"
+                       title="View Source Emails">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <rect width="20" height="16" x="2" y="4" rx="2"></rect>
+                            <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"></path>
+                        </svg>
+                    </a>
+                </div>
             </div>
             <div class="mt-2 flex items-center gap-4 text-sm text-gray-600">
                 <span>{{ summary.start_date }} - {{ summary.end_date }}</span>
@@ -27,6 +37,115 @@
                 <span>{{ summary.source_count }} sources</span>
             </div>
         </div>
+
+        <!-- Audio Generation -->
+        {% if not summary.has_audio %}
+        <div class="mb-8">
+            <button id="generateAudioBtn" 
+                    onclick="handleGenerateAudio(event)"
+                    class="inline-flex items-center justify-center rounded-lg px-4 py-2 font-medium transition-colors bg-gray-900 text-white hover:bg-gray-800 w-48">
+                <svg id="audioSpinner" class="hidden animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                <span id="generateAudioBtnText">Generate Audio</span>
+            </button>
+        </div>
+
+        <script>
+        function handleGenerateAudio(event) {
+            const button = event.currentTarget;
+            const spinner = document.getElementById('audioSpinner');
+            const btnText = document.getElementById('generateAudioBtnText');
+            
+            // Disable button and show spinner
+            button.disabled = true;
+            button.classList.add('opacity-50', 'cursor-not-allowed');
+            spinner.classList.remove('hidden');
+            btnText.textContent = 'Generating...';
+            
+            fetch(`/generate-audio/{{ summary.id }}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    // Show success message using flash
+                    const flashMessage = document.createElement('div');
+                    flashMessage.className = 'flash-message bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded relative';
+                    flashMessage.innerHTML = `
+                        <span class="block sm:inline">${data.message}</span>
+                        <span class="absolute top-0 bottom-0 right-0 px-4 py-3">
+                            <svg class="fill-current h-6 w-6 text-green-500" role="button" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
+                                <title>Close</title>
+                                <path d="M14.348 14.849a1.2 1.2 0 0 1-1.697 0L10 11.819l-2.651 3.029a1.2 1.2 0 1 1-1.697-1.697l2.758-3.15-2.759-3.152a1.2 1.2 0 1 1 1.697-1.697L10 8.183l2.651-3.031a1.2 1.2 0 1 1 1.697 1.697l-2.758 3.152 2.758 3.15a1.2 1.2 0 0 1 0 1.698z"/>
+                            </svg>
+                        </span>
+                    `;
+                    document.body.insertBefore(flashMessage, document.body.firstChild);
+                    
+                    // Reload the page after a short delay
+                    setTimeout(() => {
+                        window.location.reload();
+                    }, 2000);
+                } else {
+                    // Show error message using flash
+                    const flashMessage = document.createElement('div');
+                    flashMessage.className = 'flash-message bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative';
+                    flashMessage.innerHTML = `
+                        <span class="block sm:inline">${data.message || 'An error occurred while generating audio'}</span>
+                        <span class="absolute top-0 bottom-0 right-0 px-4 py-3">
+                            <svg class="fill-current h-6 w-6 text-red-500" role="button" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
+                                <title>Close</title>
+                                <path d="M14.348 14.849a1.2 1.2 0 0 1-1.697 0L10 11.819l-2.651 3.029a1.2 1.2 0 1 1-1.697-1.697l2.758-3.15-2.759-3.152a1.2 1.2 0 1 1 1.697-1.697L10 8.183l2.651-3.031a1.2 1.2 0 1 1 1.697 1.697l-2.758 3.152 2.758 3.15a1.2 1.2 0 0 1 0 1.698z"/>
+                            </svg>
+                        </span>
+                    `;
+                    document.body.insertBefore(flashMessage, document.body.firstChild);
+                    
+                    // Reset button state
+                    button.disabled = false;
+                    button.classList.remove('opacity-50', 'cursor-not-allowed');
+                    spinner.classList.add('hidden');
+                    btnText.textContent = 'Generate Audio';
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                // Show error message using flash
+                const flashMessage = document.createElement('div');
+                flashMessage.className = 'flash-message bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative';
+                flashMessage.innerHTML = `
+                    <span class="block sm:inline">An error occurred while generating audio</span>
+                    <span class="absolute top-0 bottom-0 right-0 px-4 py-3">
+                        <svg class="fill-current h-6 w-6 text-red-500" role="button" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
+                            <title>Close</title>
+                            <path d="M14.348 14.849a1.2 1.2 0 0 1-1.697 0L10 11.819l-2.651 3.029a1.2 1.2 0 1 1-1.697-1.697l2.758-3.15-2.759-3.152a1.2 1.2 0 1 1 1.697-1.697L10 8.183l2.651-3.031a1.2 1.2 0 1 1 1.697 1.697l-2.758 3.152 2.758 3.15a1.2 1.2 0 0 1 0 1.698z"/>
+                        </svg>
+                    </span>
+                `;
+                document.body.insertBefore(flashMessage, document.body.firstChild);
+                
+                // Reset button state
+                button.disabled = false;
+                button.classList.remove('opacity-50', 'cursor-not-allowed');
+                spinner.classList.add('hidden');
+                btnText.textContent = 'Generate Audio';
+            });
+        }
+
+        // Add event listener for flash message close buttons
+        document.addEventListener('click', function(e) {
+            if (e.target.closest('.flash-message svg')) {
+                const flashMessage = e.target.closest('.flash-message');
+                flashMessage.remove();
+            }
+        });
+        </script>
+        {% endif %}
 
         <!-- Summary Content -->
         <div class="prose prose-gray max-w-none">
@@ -60,20 +179,20 @@
 
         <!-- Sources -->
         {% if summary.sources %}
-        <section class="border-t border-gray-200 pt-6">
-            <h2 class="text-xl font-semibold mb-4">Sources</h2>
-            <div class="space-y-4">
+        <section class="border-t border-gray-200 pt-4">
+            <h2 class="text-lg font-semibold mb-2">Sources</h2>
+            <div class="space-y-2">
                 {% for source in summary.sources %}
-                <div class="rounded-lg border border-gray-200 p-4">
-                    <h3 class="font-medium">{{ source.title }}</h3>
-                    <p class="text-sm text-gray-600 mt-1">{{ source.publication }} • {{ source.date }}</p>
+                <div class="rounded border border-gray-200 p-2">
+                    <h3 class="font-medium text-sm">{{ source.title }}</h3>
+                    <p class="text-xs text-gray-600 mt-1">{{ source.publication }} • {{ source.date }}</p>
                     {% if source.url %}
                     <a href="{{ source.url }}" 
                        target="_blank" 
                        rel="noopener noreferrer" 
-                       class="text-sm text-blue-600 hover:text-blue-800 mt-2 inline-flex items-center">
+                       class="text-xs text-blue-600 hover:text-blue-800 mt-1 inline-flex items-center">
                         Read original
-                        <svg class="w-4 h-4 ml-1" viewBox="0 0 20 20" fill="currentColor">
+                        <svg class="w-3 h-3 ml-1" viewBox="0 0 20 20" fill="currentColor">
                             <path fill-rule="evenodd" d="M5.22 14.78a.75.75 0 001.06 0l7.22-7.22v5.69a.75.75 0 001.5 0v-7.5a.75.75 0 00-.75-.75h-7.5a.75.75 0 000 1.5h5.69l-7.22 7.22a.75.75 0 000 1.06z" clip-rule="evenodd" />
                         </svg>
                     </a>

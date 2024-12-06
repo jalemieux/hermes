@@ -1,7 +1,8 @@
 # app/routes.py
 from flask import Blueprint, render_template, redirect, url_for, request, flash, session, current_app, jsonify
 from flask_login import login_user, logout_user, login_required, current_user
-from app.models import db, User, Summary
+from app.mailbox_accessor import MailboxAccessor
+from app.models import db, User, Summary, Email
 #from app.utils.oauth import create_google_oauth_flow, credentials_from_user
 from app.oauth import create_google_oauth_flow
 from datetime import datetime, timedelta
@@ -11,6 +12,9 @@ import googleapiclient.discovery
 import re
 import mailslurp_client
 import random
+
+from app.summary_generator import SummaryGenerator
+from app.voice_generator import VoiceClipGenerator
 
 
 main = Blueprint('main', __name__)
@@ -50,30 +54,11 @@ def signup():
         user = User(email=email, digest_frequency=digest_frequency)
         user.set_password(password)
         
-        # create a mailslurp configuration
-        configuration = mailslurp_client.Configuration()
-        configuration.api_key['x-api-key'] = "9f2c4fd3d243e31a0086d86fe8c59019613bc29d952e87c8729ed650b25c755c"
-        with mailslurp_client.ApiClient(configuration) as api_client:
-            # create an inbox
-            inbox_controller = mailslurp_client.InboxControllerApi(api_client)
-            inbox = inbox_controller.create_inbox()
-            #inbox =  {'created_at': datetime.datetime(2024, 12, 4, 0, 30, 45, 251000, tzinfo=tzutc()),
-            #  'description': None,
-            #  'domain_id': None,
-            #  'email_address': '3981e2bb-e8b5-4012-a82f-a6c409a17fc6@mailslurp.biz',
-            #  'expires_at': '2024-12-05T12:30:45.242Z',
-            #  'favourite': False,
-            #  'functions_as': None,
-            #  'id': '3981e2bb-e8b5-4012-a82f-a6c409a17fc6',
-            #  'inbox_type': 'HTTP_INBOX',
-            #  'name': None,
-            #  'read_only': False,
-            #  'tags': [],
-            #  'user_id': '2ffa1a89-3cf2-4542-ac20-9dcb2f33a09c',
-            #  'virtual_inbox': False}
-        # Add the MailSlurp inbox email_address and id to the user table as MailSlurp attributes
-        user.mailslurp_email_address = inbox.email_address
-        user.mailslurp_inbox_id = inbox.id
+        mailbox_accessor = MailboxAccessor()
+        inbox_email_address, inbox_id = mailbox_accessor.create_mailbox()
+        
+        user.mailslurp_email_address = inbox_email_address
+        user.mailslurp_inbox_id = inbox_id
 
         try:
             db.session.add(user)
@@ -108,7 +93,7 @@ def signin():
             login_user(user, remember=remember)
             # Get the next page from the URL parameters, defaulting to dashboard
             next_page = request.args.get('next', url_for('main.dashboard'))
-            flash('Successfully signed in!', 'success')
+            # Don't flash success message anymore
             return redirect(next_page)
         
         flash('Invalid email or password', 'error')
@@ -126,34 +111,34 @@ def signout():
 @main.route('/dashboard')
 @login_required
 def dashboard():
-    mock_summaries = [
-        {
-            'title': 'Tech Industry Weekly Roundup',
-            'start_date': 'March 11, 2024',
-            'end_date': 'March 18, 2024',
-            'read_url': url_for('main.read_summary', summary_id=1),
-            'has_audio': True,
-            'audio_url': url_for('main.listen_summary', summary_id=1)
-        },
-        {
-            'title': 'Climate Change Policy Updates',
-            'start_date': 'March 10, 2024',
-            'end_date': 'March 17, 2024',
-            'read_url': url_for('main.read_summary', summary_id=2),
-            'has_audio': True,
-            'audio_url': url_for('main.listen_summary', summary_id=2)
-        },
-        {
-            'title': 'Global Economic Outlook',
-            'start_date': 'March 9, 2024',
-            'end_date': 'March 16, 2024',
-            'read_url': url_for('main.read_summary', summary_id=3),
-            'has_audio': False,
-            'audio_url': None
-        }
-    ]
+    # mock_summaries = [
+    #     {
+    #         'title': 'Tech Industry Weekly Roundup',
+    #         'start_date': 'March 11, 2024',
+    #         'end_date': 'March 18, 2024',
+    #         'read_url': url_for('main.read_summary', summary_id=1),
+    #         'has_audio': True,
+    #         'audio_url': url_for('main.listen_summary', summary_id=1)
+    #     },
+    #     {
+    #         'title': 'Climate Change Policy Updates',
+    #         'start_date': 'March 10, 2024',
+    #         'end_date': 'March 17, 2024',
+    #         'read_url': url_for('main.read_summary', summary_id=2),
+    #         'has_audio': True,
+    #         'audio_url': url_for('main.listen_summary', summary_id=2)
+    #     },
+    #     {
+    #         'title': 'Global Economic Outlook',
+    #         'start_date': 'March 9, 2024',
+    #         'end_date': 'March 16, 2024',
+    #         'read_url': url_for('main.read_summary', summary_id=3),
+    #         'has_audio': False,
+    #         'audio_url': None
+    #     }
+    # ]
     # Fetch summaries from the database
-    db_summaries = Summary.query.filter_by(user_id=current_user.id).order_by(Summary.to_date.desc()).all()
+    db_summaries = Summary.query.filter_by(user_id=current_user.id, status='completed').order_by(Summary.to_date.desc()).all()
     
     # Convert db summaries to the same format as mock summaries
     db_summaries_formatted = [
@@ -169,7 +154,7 @@ def dashboard():
     ]
     
     # Combine mock summaries and db summaries
-    combined_summaries = db_summaries_formatted + mock_summaries
+    combined_summaries = db_summaries_formatted
     
     # Sort combined summaries by end_date (most recent first)
     combined_summaries.sort(key=lambda x: datetime.strptime(x['end_date'], '%B %d, %Y'), reverse=True)
@@ -216,32 +201,41 @@ def generate_summary():
     try:
         # Clear any existing flash messages
         session.pop('_flashes', None)
-        # Get the timestamp of the last summary generation
-        last_summary = Summary.query.filter_by(user_id=current_user.id).order_by(Summary.created_at.desc()).first()
-        start_time = last_summary.to_date if last_summary else datetime.now() - timedelta(days=7)
-        import time
-        time.sleep(3)
-        import random
-
-        # if random.random() < 0.5:
-        #     raise Exception("Randomly generated error for testing purposes")
-        # Generate a random summary
-        summary_title = "Weekly Tech News"
-        summary_content = "This week in tech, several major events took place. OpenAI announced a new version of their AI model, GPT-5, which has shown significant improvements in natural language understanding and generation. Apple released their latest product, the Vision Pro, which has received positive reviews from both critics and consumers. Tesla has announced plans to build a new Gigafactory in Texas, which is expected to create thousands of new jobs. Microsoft has completed its acquisition of Activision Blizzard, making it one of the largest gaming companies in the world."
-
-        # Create a new summary object
+        
+        # ensure not previous summary is being generated
+        five_minutes_ago = datetime.now() - timedelta(minutes=5)
+        recent_pending_summaries = Summary.query.filter(
+            Summary.user_id == current_user.id,
+            Summary.status == 'pending',
+            Summary.created_at >= five_minutes_ago
+        ).all()
+        
+        if recent_pending_summaries:
+            return jsonify({
+                'status': 'error',
+                'message': 'A summary is already being generated. Please wait a few minutes and try again.'
+            }), 400
+        
+        # Create a new summary record with status 'pending'
         new_summary = Summary(
             user_id=current_user.id,
-            title=summary_title,
-            content=summary_content,
-            from_date=start_time,
+            title="",
+            content="",
+            from_date=datetime.now(),
             to_date=datetime.now(),
-            has_audio=False  # Assuming no audio for the random summary
+            status='pending',
+            has_audio=False
         )
-
-        # Add the new summary to the database
         db.session.add(new_summary)
         db.session.commit()
+        db.session.refresh(new_summary)
+
+        summary_generator = SummaryGenerator()
+        new_summary = summary_generator.generate_summary(current_user.id, new_summary)
+
+        db.session.add(new_summary)
+        db.session.commit()
+        
 
         
         # If successful
@@ -259,81 +253,57 @@ def generate_summary():
 @main.route('/summary/<int:summary_id>')
 @login_required
 def read_summary(summary_id):
-    # Mock summary data for testing
-    summary = {
-        'id': summary_id,
-        'title': 'Tech Industry Weekly Roundup',
-        'start_date': 'March 11, 2024',
-        'end_date': 'March 18, 2024',
-        'source_count': 12,
-        'has_audio': True,
-        'key_points': [
-            'OpenAI announced GPT-5 with breakthrough capabilities in reasoning and multimodal understanding',
-            'Apple\'s mixed reality headset Vision Pro surpassed 1 million sales in its first quarter',
-            'Tesla revealed plans for a new affordable electric vehicle model starting at $25,000',
-            'Microsoft completed its acquisition of Activision Blizzard for $69 billion'
-        ],
+    # Fetch the summary from database
+    summary = Summary.query.get(summary_id)
+    if not summary:
+        flash('Summary not found', 'error')
+        return redirect(url_for('main.dashboard'))
+    
+    # Create the summary dictionary with the same structure as the mock
+    summary_json = {
+        'id': summary.id,
+        'title': summary.title,
+        'start_date': summary.from_date.strftime('%B %d, %Y'),
+        'end_date': summary.to_date.strftime('%B %d, %Y'),
+        'source_count': len(summary.sources) if summary.sources else 0,
+        'has_audio': summary.has_audio,
+        'key_points': [point["text"] for point in summary.key_points] if summary.key_points else [],
         'sections': [
             {
-                'title': 'AI Developments',
-                'content': '''
-                <p>This week saw major developments in artificial intelligence, led by OpenAI's surprise announcement of GPT-5. 
-                The new model demonstrates significant improvements in reasoning capabilities and can now process multiple types 
-                of input, including images, audio, and video, with unprecedented accuracy.</p>
-                
-                <p>Google and Microsoft also made significant AI-related announcements, with both companies introducing new 
-                enterprise-focused AI solutions. Google's new AI Platform aims to simplify machine learning workflows, while 
-                Microsoft expanded its Azure AI services with new customization options.</p>
-                '''
-            },
-            {
-                'title': 'Hardware and Devices',
-                'content': '''
-                <p>Apple's Vision Pro continues to exceed expectations, with analysts noting strong developer adoption and 
-                consumer interest despite the high price point. The company's shares reached a new all-time high following 
-                the sales announcement.</p>
-                
-                <p>Tesla's announcement of a new affordable model has been met with enthusiasm from both investors and 
-                potential customers. The company claims the new vehicle will maintain Tesla's high standards for range and 
-                performance while achieving a significantly lower price point through manufacturing innovations.</p>
-                '''
+                'title': section['header'],
+                'content': section['content']
             }
-        ],
+            for section in summary.sections
+        ] if summary.sections else [],
         'sources': [
             {
-                'title': 'OpenAI Unveils GPT-5: A New Era in Artificial Intelligence',
-                'publication': 'TechCrunch',
-                'date': 'March 15, 2024',
-                'url': 'https://techcrunch.com/example'
-            },
-            {
-                'title': 'Vision Pro Sales Exceed Expectations in First Quarter',
-                'publication': 'Bloomberg',
-                'date': 'March 14, 2024',
-                'url': 'https://bloomberg.com/example'
-            },
-            {
-                'title': 'Tesla Announces $25,000 Electric Vehicle',
-                'publication': 'Reuters',
-                'date': 'March 12, 2024',
-                'url': 'https://reuters.com/example'
+                'title': source['title'],
+                'publication': source['publisher'],
+                'date': source['date'],
+                'url': source['url']
             }
-        ]
+            for source in summary.sources
+        ] if summary.sources else []
     }
     
-    return render_template('summary.html', summary=summary)
+    return render_template('summary.html', summary=summary_json)
 
 @main.route('/audio/<int:summary_id>')
 @login_required
 def listen_summary(summary_id):
-    # Mock summary data for testing
+    # Fetch the summary from database
+    summary_obj = Summary.query.get(summary_id)
+    if not summary_obj:
+        flash('Summary not found', 'error')
+        return redirect(url_for('main.dashboard'))
+
     summary = {
-        'id': summary_id,
-        'title': 'Tech Industry Weekly Roundup',
-        'start_date': 'March 11, 2024',
-        'end_date': 'March 18, 2024',
-        'audio_url': '/static/audio/episode4.mp3',  # You'll need to add a sample audio file
-        'has_audio': True
+        'id': summary_obj.id,
+        'title': summary_obj.title,
+        'start_date': summary_obj.from_date.strftime('%B %d, %Y'),
+        'end_date': summary_obj.to_date.strftime('%B %d, %Y'),
+        'audio_url': summary_obj.audio_url,
+        'has_audio': summary_obj.has_audio
     }
     
     if not summary['has_audio']:
@@ -341,3 +311,50 @@ def listen_summary(summary_id):
         return redirect(url_for('main.dashboard'))
     
     return render_template('audio.html', summary=summary)
+
+@main.route('/summary/<int:summary_id>/emails')
+@login_required
+def summary_emails(summary_id):
+    # Fetch the summary
+    summary = Summary.query.get(summary_id)
+    if not summary:
+        flash('Summary not found', 'error')
+        return redirect(url_for('main.dashboard'))
+    
+    # Fetch all emails used in this summary
+    email_ids = [email_id for email_id in summary.email_ids] if summary.email_ids else []
+    emails = Email.query.filter(Email.id.in_(email_ids)).all()
+    
+    summary_json = {
+        'id': summary.id,
+        'title': summary.title,
+        'start_date': summary.from_date.strftime('%B %d, %Y'),
+        'end_date': summary.to_date.strftime('%B %d, %Y'),
+    }
+    
+    return render_template('summary_emails.html', summary=summary_json, emails=emails)
+
+@main.route('/generate-audio/<int:summary_id>', methods=['POST'])
+@login_required
+def generate_audio(summary_id):
+    try:
+        voice_generator = VoiceClipGenerator()
+        success = voice_generator.generate_voice_clip(summary_id)
+        
+        if success:
+            return jsonify({
+                'status': 'success',
+                'message': 'Audio generated successfully'
+            }), 200
+        else:
+            return jsonify({
+                'status': 'error',
+                'message': 'Failed to generate audio'
+            }), 400
+            
+    except Exception as e:
+        current_app.logger.error(f"Audio generation failed: {str(e)}")
+        return jsonify({
+            'status': 'error',
+            'message': f'Failed to generate audio: {str(e)}'
+        }), 400

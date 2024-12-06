@@ -15,3 +15,7 @@ class Config:
     
     # MailSlurp Settings
     MAILSLURP_API_KEY = os.environ.get('MAILSLURP_API_KEY') or '9f2c4fd3d243e31a0086d86fe8c59019613bc29d952e87c8729ed650b25c755c'
+    
+    ELEVEN_LABS_API_KEY = "sk_5152d17d53f5a0d36407190ae3daee31a40d6310ec230790"  # Replace with your actual API key
+    ELEVEN_LABS_VOICE_ID = "nPczCjzI2devNBz1zQrb"  # Replace with your preferred voice ID
+    VOICE_GENERATOR = "openai"
