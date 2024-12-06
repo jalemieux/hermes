@@ -1,64 +1,47 @@
-<!DOCTYPE html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Sign Up - Hermes</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="/static/style.css">
-  </head>
-  <body class="bg-gray-50">
-    <header class="border-b border-gray-200 bg-white">
-      <div class="mx-auto flex max-w-7xl items-center justify-between px-4 py-4">
-        <a href="/" class="flex items-center space-x-2">
-          <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-8 w-8 text-gray-900">
-            <path d="M12 3c.132 0 .263 0 .393 0a7.5 7.5 0 0 0 7.92 12.446a9 9 0 1 1 -8.313-12.454z"></path>
-          </svg>
-          <span class="text-xl font-bold">Hermes</span>
-        </a>
-      </div>
-    </header>
+{% extends "base.html" %}
 
-    <main class="mx-auto max-w-md px-4 py-16">
-      <div class="rounded-lg border border-gray-200 bg-white p-6">
-        <h2 class="text-2xl font-bold">Create your account</h2>
-        
-        {% with messages = get_flashed_messages(with_categories=true) %}
-          {% if messages %}
-            {% for category, message in messages %}
-              <div class="mt-4 rounded-lg p-4 text-sm {% if category == 'error' %}bg-red-100 text-red-700{% else %}bg-green-100 text-green-700{% endif %}">
-                {{ message }}
-              </div>
-            {% endfor %}
-          {% endif %}
-        {% endwith %}
+{% block title %}Sign Up - Hermes{% endblock %}
 
-        <form method="POST" class="mt-6 space-y-4">
-          <div>
-            <label for="email" class="block text-sm font-medium text-gray-700">Email address</label>
-            <input type="email" name="email" id="email" required 
-                   class="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 shadow-sm focus:border-gray-500 focus:outline-none">
+{% block content %}
+<main class="mx-auto max-w-md px-4 py-16">
+  <div class="rounded-lg border border-gray-200 bg-white p-6">
+    <h2 class="text-2xl font-bold">Create your account</h2>
+    
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        {% for category, message in messages %}
+          <div class="mt-4 rounded-lg p-4 text-sm {% if category == 'error' %}bg-red-100 text-red-700{% else %}bg-green-100 text-green-700{% endif %}">
+            {{ message }}
           </div>
+        {% endfor %}
+      {% endif %}
+    {% endwith %}
 
-          <div>
-            <label for="password" class="block text-sm font-medium text-gray-700">Password</label>
-            <input type="password" name="password" id="password" required 
-                   class="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 shadow-sm focus:border-gray-500 focus:outline-none">
-          </div>
-
-          <button type="submit" 
-                  class="w-full rounded-lg bg-gray-900 px-4 py-2 text-white hover:bg-gray-800">
-            Create Account
-          </button>
-        </form>
-
-        <p class="mt-4 text-center text-sm text-gray-600">
-          Already have an account?
-          <a href="/signin" class="font-medium text-gray-900 hover:underline">
-            Sign in
-          </a>
-        </p>
+    <form method="POST" class="mt-6 space-y-4">
+      <div>
+        <label for="email" class="block text-sm font-medium text-gray-700">Email address</label>
+        <input type="email" name="email" id="email" required 
+               class="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 shadow-sm focus:border-gray-500 focus:outline-none">
       </div>
-    </main>
-  </body>
-</html> 
+
+      <div>
+        <label for="password" class="block text-sm font-medium text-gray-700">Password</label>
+        <input type="password" name="password" id="password" required 
+               class="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 shadow-sm focus:border-gray-500 focus:outline-none">
+      </div>
+
+      <button type="submit" 
+              class="w-full rounded-lg bg-gray-900 px-4 py-2 text-white hover:bg-gray-800">
+        Create Account
+      </button>
+    </form>
+
+    <p class="mt-4 text-center text-sm text-gray-600">
+      Already have an account?
+      <a href="/signin" class="font-medium text-gray-900 hover:underline">
+        Sign in
+      </a>
+    </p>
+  </div>
+</main>
+{% endblock %} 

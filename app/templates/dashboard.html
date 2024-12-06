@@ -5,21 +5,21 @@
 {% block content %}
 <main class="mx-auto max-w-7xl px-4 py-8">
 
-    <div class="grid grid-cols-1 gap-8 lg:grid-cols-2">
-        <div class="space-y-6">
-            
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                <div class="mb-6 p-4 rounded-lg {% if category == 'error' %}bg-red-50 text-red-600{% else %}bg-green-50 text-green-600{% endif %}">
+                    {{ message }}
+                </div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+
+    <div class="grid grid-cols-1 gap-8 lg:grid-cols-3">
+        <div class="lg:col-span-2 space-y-6">
             <div class="rounded-lg border border-gray-200 bg-white p-6">
                 <h2 class="text-xl font-semibold">Catch Up</h2>
                 <p class="mt-2 text-sm text-gray-600">If you don't feel like waiting, you can generate a new summary on demand. It will cover the latest news since your last update.</p>
-                {% with messages = get_flashed_messages(with_categories=true) %}
-                    {% if messages %}
-                        {% for category, message in messages %}
-                            <div class="mb-4 p-4 rounded-lg {% if category == 'error' %}bg-red-50 text-red-600{% else %}bg-green-50 text-green-600{% endif %}">
-                                {{ message }}
-                            </div>
-                        {% endfor %}
-                    {% endif %}
-                {% endwith %}
                 
                 <div id="error-message" class="hidden mb-4 p-4 rounded-lg bg-red-50 text-red-600"></div>
                 
@@ -28,7 +28,7 @@
                     <form id="generate-summary-form" action="{{ url_for('main.generate_summary') }}" method="POST">
                         <button id="generate-button" type="submit" class="rounded-lg px-4 py-2 font-medium transition-colors bg-gray-900 text-white hover:bg-gray-800 flex items-center">
                             <span>Generate New Summary</span>
-                            <svg id="loading-spinner" class="hidden ml-2 animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <svg id="summary-loading-spinner" class="hidden ml-2 animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                                 <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                                 <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                             </svg>
@@ -71,23 +71,60 @@
             </div>
         </div>
 
-        <div class="space-y-6">
+        <div class="lg:col-span-1 space-y-6">
             <div class="rounded-lg border border-gray-200 bg-white p-6">
                 <h2 class="text-xl font-semibold">Your Digest Email</h2>
+                
                 <div class="mt-4 flex items-center gap-4 relative">
-                    <code class="rounded bg-gray-100 px-2 py-0.5 text-sm">{{ mailslurp_email_address }}</code>
-                    <button onclick="copyToClipboard('{{ mailslurp_email_address }}')" class="rounded-lg px-4 py-2 font-medium transition-colors bg-gray-100 text-gray-900 hover:bg-gray-200">
-                        Copy
+                    
+                    <code id="digest-email" class="rounded bg-gray-100 px-2 py-0.5 text-xs">{{ mailslurp_email_address }}</code>
+                    <button id="copy-button" class="absolute right-2 top-1/2 -translate-y-1/2 rounded-lg p-2 text-gray-500 hover:text-gray-700">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                        </svg>
                     </button>
-                    <div id="toast" class="absolute left-full ml-2 hidden rounded-md bg-gray-800/90 px-3 py-1 text-xs text-white shadow-sm transition-all duration-300 opacity-0 whitespace-nowrap">
-                        Copied
+                    <div id="toast" class="hidden fixed inset-0 z-50">
+                        <div class="absolute inset-0 bg-gray-500 bg-opacity-75 transition-opacity"></div>
+                        
+                        <div  class="fixed inset-0 z-50 flex items-center justify-center p-4">
+                            <div class="bg-white rounded-lg px-6 py-4 shadow-xl transform transition-all">
+                                <div class="flex items-center justify-between">
+                                    <p id="toast-text" class="text-gray-900"></p>
+                                    <button id="toast-button" onclick="document.getElementById('toast').classList.add('hidden')" class="ml-4 text-gray-400 hover:text-gray-500">
+                                        OK
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
                 <p class="mt-2 text-sm text-gray-600">
-                    Forward your newsletters to this address.
+                    Forward your newsletters to this address. We suggest setting up rules in your inbox to automate the process if needed.
                 </p>
+                <hr class="my-4 border-t border-gray-200">
+                <p class="mt-1 text-sm text-gray-600 cursor-help" title="When you subscribe to newsletters using this digest email, they often require verification. With forwarding enabled, you'll receive these verification emails at your personal address.">
+                    If you plan to use this digest email to subscribe to newsletters directly, enable forwarding to allow email verification.
+                </p>
+            <div class="mt-4">
+                    <form action="{{ url_for('main.email_forwarder') }}" method="POST">
+                        <label class="flex items-center">
+                            <div class="relative inline-block w-10 mr-2 align-middle select-none">
+                                <input type="checkbox" 
+                                       name="email_forwarding"
+                                       id="email-forwarding-toggle"
+                                       {% if email_forwarding_enabled %}checked{% endif %}
+                                       class="sr-only peer"
+                                       onchange="this.form.submit()"
+                                >
+                                <div class="w-10 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-gray-900"></div>
+                            </div>
+                            <span class="text-sm text-gray-700">Forward to my email address {{ user_email }}</span>
+                        </label>
+                    </form>
+                </div>
             </div>
-            <div class="rounded-lg border border-gray-200 bg-white p-6">
+            <!-- <div class="rounded-lg border border-gray-200 bg-white p-6">
                 <h2 class="text-xl font-semibold">Digest Settings</h2>
                 <form action="/settings/update" method="POST" class="mt-4 space-y-4">
                     <div>
@@ -102,7 +139,7 @@
                         Save Changes
                     </button>
                 </form>
-            </div>
+            </div> -->
 
             <!-- <div class="rounded-lg border border-gray-200 bg-white p-6">
                 <h2 class="text-xl font-semibold">Quick Actions</h2>
@@ -152,83 +189,76 @@
 </main>
 
 <script>
-    function copyToClipboard(text) {
-        navigator.clipboard.writeText(text).then(() => {
-            const toast = document.getElementById('toast');
-            toast.classList.remove('hidden');
-            requestAnimationFrame(() => {
-                toast.classList.add('opacity-100');
-            });
-            
+    function modalToast(text, hideDelay = 1500, fadeDelay = 300, closeButton = false) {
+        const toastText = document.getElementById('toast-text');
+        if (toastText) {
+            toastText.textContent = text;
+        }
+        const toast = document.getElementById('toast');
+        if (!toast) return;
+        const toastButton = document.getElementById('toast-button');
+        
+        toast.classList.remove('hidden');
+        requestAnimationFrame(() => {
+            toast.classList.add('opacity-100');
+        });
+        if(!closeButton){
             setTimeout(() => {
                 toast.classList.remove('opacity-100');
                 setTimeout(() => {
                     toast.classList.add('hidden');
-                }, 300);
-            }, 1500);
-        });
+                }, fadeDelay);
+            }, hideDelay);
+        }
     }
+    
 
-    document.getElementById('generate-summary-form').addEventListener('submit', function(e) {
+    document.getElementById('copy-button').addEventListener('click', function() {
+        //modalToast(document.getElementById('digest-email').textContent);
+        navigator.clipboard.writeText(document.getElementById('digest-email').textContent).then(() => {
+            modalToast('Copied to clipboard', 500, 300, false);
+        });
+    });
+
+    document.getElementById('generate-summary-form').addEventListener('submit', async function(e) {
         e.preventDefault();
         
+        
         const button = document.getElementById('generate-button');
-        const spinner = document.getElementById('loading-spinner');
-        const errorMessage = document.getElementById('error-message');
+        button.disabled = true;
+        
+        const spinner = document.getElementById('summary-loading-spinner');
         
         // Disable button and show spinner
         button.disabled = true;
-        button.classList.add('bg-gray-500');
-        button.classList.remove('hover:bg-gray-800');
         spinner.classList.remove('hidden');
-        errorMessage.classList.add('hidden');
         
-        fetch(this.action, {
-            method: 'POST',
-            headers: {
-                'X-Requested-With': 'XMLHttpRequest',
-                'Accept': 'application/json'
-            },
-            credentials: 'same-origin'
-        })
-        .then(response => response.json())
-        .then(data => {
-            // Create and show flash message
-            const flashDiv = document.createElement('div');
-            flashDiv.className = `mb-4 p-4 rounded-lg ${data.status === 'success' ? 'bg-green-50 text-green-600' : 'bg-red-50 text-red-600'}`;
-            flashDiv.textContent = data.message;
+        try {
+            const response = await fetch('/generate-summary', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            });
             
-            // Insert the flash message at the top of the form container
-            const formContainer = this.parentElement;
-            formContainer.insertBefore(flashDiv, formContainer.firstChild);
+            const data = await response.json();
             
             if (data.status === 'success') {
-                // Immediately reload the page on success
-                window.location.reload();
+                modalToast(data.message, 3000, 300, false);
+                // Refresh the page to show new summary
+                setTimeout(() => window.location.reload(), 3000);
             } else {
-                // Only show flash message temporarily and reset button if there was an error
-                setTimeout(() => {
-                    flashDiv.remove();
-                }, 3000);
-                
-                // Reset button state if there was an error
-                button.disabled = false;
-                button.classList.remove('bg-gray-500');
-                button.classList.add('hover:bg-gray-800');
-                spinner.classList.add('hidden');
+                modalToast(data.message || 'An error occurred', 3000, 300, true);
             }
-        })
-        .catch(error => {
-            // Show error message
-            errorMessage.textContent = 'An unexpected error occurred. Please try again.';
-            errorMessage.classList.remove('hidden');
-            
-            // Reset button state
+        } catch (error) {
+            modalToast('An error occurred. Please try again.', 3000, 300, true);
+        } finally {
+            // Re-enable button and hide spinner
             button.disabled = false;
-            button.classList.remove('bg-gray-500');
-            button.classList.add('hover:bg-gray-800');
             spinner.classList.add('hidden');
-        });
+        }
     });
+
+    
 </script>
 {% endblock %}

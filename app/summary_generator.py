@@ -264,7 +264,10 @@ class SummaryGenerator:
 
         emails = self.fetch_emails(inbox_id, start_date, end_date)
         logging.info(f"Fetched {len(emails)} emails")
-
+        if len(emails) == 0:
+            logging.info(f"No emails found")
+            raise Exception("No emails found")
+        
         email_ids = self.process_emails(emails, user_id)
         logging.info(f"Processed content: {email_ids}")
         

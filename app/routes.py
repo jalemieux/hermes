@@ -12,9 +12,11 @@ import googleapiclient.discovery
 import re
 import mailslurp_client
 import random
+import logging
 
 from app.summary_generator import SummaryGenerator
 from app.voice_generator import VoiceClipGenerator
+logging.basicConfig(level=logging.DEBUG)
 
 
 main = Blueprint('main', __name__)
@@ -78,7 +80,7 @@ def signup():
 @main.route('/signin', methods=['GET', 'POST'])
 def signin():
     # Clear any existing flash messages at the start of the route
-    session.pop('_flashes', None)
+    #session.pop('_flashes', None)
     
     if request.method == 'POST':
         email = request.form.get('email')
@@ -97,9 +99,9 @@ def signin():
             next_page = request.args.get('next', url_for('main.dashboard'))
             # Don't flash success message anymore
             return redirect(next_page)
-        
+        current_app.logger.error(f"Invalid email or password for user {email}")
         flash('Invalid email or password', 'error')
-        return redirect(url_for('main.signin'))
+        return render_template('signin.html')
 
     return render_template('signin.html')
 
@@ -162,8 +164,10 @@ def dashboard():
     combined_summaries.sort(key=lambda x: datetime.strptime(x['end_date'], '%B %d, %Y'), reverse=True)
     
     return render_template('dashboard.html',
+                         mailslurp_email_address=current_user.mailslurp_email_address,
+                         user_email=current_user.email,
                          summaries=combined_summaries,
-                         mailslurp_email_address=current_user.mailslurp_email_address)
+                         email_forwarding_enabled=current_user.email_forwarding_enabled)
 
 @main.route('/authorize-gmail')
 @login_required
@@ -232,8 +236,17 @@ def generate_summary():
         db.session.commit()
         db.session.refresh(new_summary)
 
-        summary_generator = SummaryGenerator()
-        new_summary = summary_generator.generate_summary(current_user.id, new_summary)
+        try:
+            summary_generator = SummaryGenerator()
+            new_summary = summary_generator.generate_summary(current_user.id, new_summary)
+        except Exception as e:
+            current_app.logger.error(f"Summary generation failed: {str(e)}")
+            Summary.query.filter_by(id=new_summary.id).delete()
+            db.session.commit()
+            return jsonify({
+                'status': 'error',
+                'message': f'Failed to generate summary. Please try again. {e}'
+            }), 400
 
         db.session.add(new_summary)
         db.session.commit()
@@ -367,3 +380,45 @@ def generate_audio(summary_id):
             'status': 'error',
             'message': f'Failed to generate audio: {str(e)}'
         }), 400
+
+@main.route('/email-forwarder', methods=['POST'])
+@login_required
+def email_forwarder():
+    try:
+        # Get the currently logged in user
+        user = User.query.get(current_user.get_id())
+        if not user:
+            flash('User not found', 'error')
+            return redirect(url_for('main.dashboard'))
+        
+        inbox_id = user.mailslurp_inbox_id
+        user_email = user.email
+        
+        if not inbox_id or not user_email:
+            flash('Missing required parameters', 'error')
+            return redirect(url_for('main.dashboard'))
+        
+        # Check if the checkbox was checked in the form
+        new_state = request.form.get('email_forwarding') == 'on'
+        
+        try:
+            mailbox = MailboxAccessor()
+            if new_state:
+                mailbox.create_forwarder(inbox_id, user_email)
+                message = 'Email forwarding enabled'
+            else:
+                mailbox.remove_forwarder(inbox_id)
+                message = 'Email forwarding disabled'
+            
+            # Update the user's forwarding state
+            current_user.email_forwarding_enabled = new_state
+            db.session.commit()
+            
+            flash(message, 'success')
+        except Exception as e:
+            flash(str(e), 'error')
+            
+    except Exception as e:
+        flash(str(e), 'error')
+        
+    return redirect(url_for('main.dashboard'))

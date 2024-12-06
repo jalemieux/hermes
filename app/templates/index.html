@@ -1,31 +1,7 @@
-<!DOCTYPE html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Hermes - News Digest</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="/static/style.css">
-  </head>
-  <body>
-    <header class="border-b border-gray-200 bg-white">
-      <div class="mx-auto flex max-w-7xl items-center justify-between px-4 py-4">
-        <a href="/" class="flex items-center space-x-2">
-          <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-8 w-8 text-gray-900">
-            <path d="M12 3c.132 0 .263 0 .393 0a7.5 7.5 0 0 0 7.92 12.446a9 9 0 1 1 -8.313-12.454z"></path>
-          </svg>
-          <span class="text-xl font-bold">Hermes</span>
-        </a>
-        <nav class="flex items-center space-x-4">
-          <a href="/signin" class="rounded-lg px-4 py-2 font-medium transition-colors bg-gray-100 text-gray-900 hover:bg-gray-200">
-            Sign In
-          </a>
-          <a href="/signup" class="rounded-lg px-4 py-2 font-medium transition-colors bg-gray-900 text-white hover:bg-gray-800">
-            Sign Up
-          </a>
-        </nav>
-      </div>
-    </header>
+{% extends "base.html" %}
+
+{% block title %}Home - Hermes{% endblock %}
+{% block content %}
 
     <main>
       <section class="bg-white py-20">
@@ -84,6 +60,5 @@
           </div>
         </div>
       </section>
-    </main>
-  </body>
-</html>
+</main>
+{% endblock %} 

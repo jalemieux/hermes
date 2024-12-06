@@ -25,6 +25,8 @@ class User(UserMixin, db.Model):
     # Add relationship to summaries
     #summaries = db.relationship('Summary', backref='user', lazy=True)
 
+    email_forwarding_enabled = db.Column(db.Boolean, default=False)
+
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)
 

@@ -7,7 +7,7 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="/static/css/style.css">
 </head>
-<body>
+<body> 
     <nav class="border-b border-gray-200 bg-white">
         <div class="mx-auto flex max-w-7xl items-center justify-between px-4 py-4">
             <a href="{% if current_user.is_authenticated %}{{ url_for('main.dashboard') }}{% else %}{{ url_for('main.index') }}{% endif %}" class="flex items-center space-x-2">
@@ -28,7 +28,27 @@
             <div class="hidden md:flex items-center space-x-4">
                 {% if current_user.is_authenticated %}
                     <a href="{{ url_for('main.dashboard') }}" class="text-sm font-medium text-gray-900 hover:underline">Dashboard</a>
-                    <a href="{{ url_for('main.signout') }}" class="rounded-lg bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-gray-800">Sign Out</a>
+                    
+                    <div class="relative" x-data="{ open: false }">
+                        <button @click="open = !open" class="flex items-center space-x-1">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-gray-900">
+                                <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"></path>
+                                <circle cx="12" cy="7" r="4"></circle>
+                            </svg>
+                        </button>
+                        
+                        <div x-show="open" 
+                             @click.away="open = false"
+                             class="absolute right-0 mt-2 w-48 rounded-lg bg-white py-2 shadow-lg ring-1 ring-black ring-opacity-5">
+                            <div class="px-4 py-2 text-sm text-gray-700 border-b border-gray-100">
+                                {{ current_user.email }}
+                            </div>
+                            <a href="{{ url_for('main.signout') }}" 
+                               class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
+                                Sign Out
+                            </a>
+                        </div>
+                    </div>
                 {% else %}
                     <a href="{{ url_for('main.signin') }}" class="text-sm font-medium text-gray-900 hover:underline">Sign In</a>
                     <a href="{{ url_for('main.signup') }}" class="rounded-lg bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-gray-800">Sign Up</a>
@@ -39,8 +59,11 @@
         <div id="mobile-menu" class="hidden md:hidden border-t border-gray-200">
             <div class="space-y-2 px-4 py-4">
                 {% if current_user.is_authenticated %}
+                    <div class="border-b border-gray-100 pb-2 mb-2">
+                        <div class="text-sm text-gray-700">{{ current_user.email }}</div>
+                    </div>
                     <a href="{{ url_for('main.dashboard') }}" class="block text-sm font-medium text-gray-900 hover:underline">Dashboard</a>
-                    <a href="{{ url_for('main.signout') }}" class="block w-full rounded-lg bg-gray-900 px-4 py-2 text-center text-sm font-medium text-white hover:bg-gray-800">Sign Out</a>
+                    <a href="{{ url_for('main.signout') }}" class="block text-sm font-medium text-gray-900 hover:underline">Sign Out</a>
                 {% else %}
                     <a href="{{ url_for('main.signin') }}" class="block text-sm font-medium text-gray-900 hover:underline">Sign In</a>
                     <a href="{{ url_for('main.signup') }}" class="block w-full rounded-lg bg-gray-900 px-4 py-2 text-center text-sm font-medium text-white hover:bg-gray-800">Sign Up</a>
@@ -48,8 +71,6 @@
             </div>
         </div>
     </nav>
-    
-   
     
     <div class="container mt-4">
         {% block content %}{% endblock %}
@@ -60,6 +81,8 @@
             const mobileMenu = document.getElementById('mobile-menu');
             mobileMenu.classList.toggle('hidden');
         }
+
     </script>
+    <script src="//unpkg.com/alpinejs" defer></script>
 </body>
 </html>

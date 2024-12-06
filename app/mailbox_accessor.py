@@ -46,6 +46,10 @@ class MailboxAccessor:
                 forward_to_recipients=[forward_to_email]
             )
         )
+    
+    def remove_forwarder(self, inbox_id):
+        inbox_forwarder_controller = mailslurp_client.InboxForwarderControllerApi(self.api_client)
+        return inbox_forwarder_controller.delete_inbox_forwarder(inbox_id)
 
 
     def create_mailbox(self) -> tuple[str, str]:
