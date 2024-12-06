@@ -57,6 +57,7 @@ class Summary(db.Model):
     
     # Add this line to existing model
     email_ids = db.Column(db.JSON)  # Store array of email IDs used in summary
+    audio_filename = db.Column(db.String(255))
 
     def to_dict(self):
         """Convert summary to dictionary format matching SummaryModel"""

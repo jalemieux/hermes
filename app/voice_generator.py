@@ -124,7 +124,7 @@ class VoiceClipGenerator:
 
         return file_path
 
-    def generate_voice_clip(self, summary_id: int) -> bool:
+    def generate_voice_clip(self, summary_id, file_path):
         """
         Generate a voice clip for a given summary.
         
@@ -144,7 +144,7 @@ class VoiceClipGenerator:
             # Convert text to speech
             # Generate unique filename based on summary ID and timestamp
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            file_path = f"app/static/audio/summary_{summary_id}_{timestamp}.mp3"
+            #file_path = f"app/static/audio/summary_{summary_id}_{timestamp}.mp3"
             if Config.VOICE_GENERATOR == "elevenlabs":
                 self.eleven_labs_text_to_speech(file_path, summary)
             else:

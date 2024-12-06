@@ -1,5 +1,5 @@
 # app/routes.py
-from flask import Blueprint, render_template, redirect, url_for, request, flash, session, current_app, jsonify
+from flask import Blueprint, render_template, redirect, url_for, request, flash, session, current_app, jsonify, send_file
 from flask_login import login_user, logout_user, login_required, current_user
 from app.mailbox_accessor import MailboxAccessor
 from app.models import db, User, Summary, Email
@@ -13,6 +13,8 @@ import re
 import mailslurp_client
 import random
 import logging
+import os
+from werkzeug.utils import secure_filename
 
 from app.summary_generator import SummaryGenerator
 from app.voice_generator import VoiceClipGenerator
@@ -360,10 +362,22 @@ def summary_emails(summary_id):
 @login_required
 def generate_audio(summary_id):
     try:
+        # Create the /var/data directory if it doesn't exist
+        os.makedirs('/var/data/audio', exist_ok=True)
+        
         voice_generator = VoiceClipGenerator()
-        success = voice_generator.generate_voice_clip(summary_id)
+        audio_filename = f'summary_{summary_id}_{int(datetime.now().timestamp())}.mp3'
+        audio_path = os.path.join('/var/data/audio', audio_filename)
+        
+        success = voice_generator.generate_voice_clip(summary_id, audio_path)
         
         if success:
+            # Update the summary with the audio filename
+            summary = Summary.query.get(summary_id)
+            summary.audio_filename = audio_filename
+            summary.has_audio = True
+            db.session.commit()
+            
             return jsonify({
                 'status': 'success',
                 'message': 'Audio generated successfully'
@@ -422,3 +436,22 @@ def email_forwarder():
         flash(str(e), 'error')
         
     return redirect(url_for('main.dashboard'))
+
+@main.route('/audio-file/<int:summary_id>')
+@login_required
+def get_audio_file(summary_id):
+    summary = Summary.query.get_or_404(summary_id)
+    
+    # Verify the summary belongs to the current user
+    if summary.user_id != current_user.id:
+        return jsonify({'error': 'Unauthorized'}), 403
+        
+    if not summary.audio_filename:
+        return jsonify({'error': 'No audio file available'}), 404
+        
+    audio_path = os.path.join('/var/data', summary.audio_filename)
+    
+    if not os.path.exists(audio_path):
+        return jsonify({'error': 'Audio file not found'}), 404
+        
+    return send_file(audio_path, mimetype='audio/mpeg')
