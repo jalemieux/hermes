@@ -25,3 +25,4 @@ class Config:
     ELEVEN_LABS_API_KEY = os.environ.get('ELEVEN_LABS_API_KEY') or None  # Replace with your actual API key
     ELEVEN_LABS_VOICE_ID = "nPczCjzI2devNBz1zQrb"  # Replace with your preferred voice ID
     VOICE_GENERATOR = "openai"
+    INCLUDE_KEY_POINTS = "false"

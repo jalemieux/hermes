@@ -25,10 +25,11 @@ class VoiceClipGenerator:
         """
         segments = [summary.title]
         
-        if summary.key_points:
-            segments.append("Key Points:")
-            for point in summary.key_points:
-                segments.append(f"• {point['text']}")
+        if Config.INCLUDE_KEY_POINTS == "true":
+            if summary.key_points:
+                segments.append("Key Points:")
+                for point in summary.key_points:
+                    segments.append(f"• {point['text']}")
         
         if summary.sections:
             for section in summary.sections:

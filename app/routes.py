@@ -305,7 +305,14 @@ def listen_summary(summary_id):
         'start_date': summary_obj.from_date.strftime('%B %d, %Y'),
         'end_date': summary_obj.to_date.strftime('%B %d, %Y'),
         'audio_url': summary_obj.audio_url,
-        'has_audio': summary_obj.has_audio
+        'has_audio': summary_obj.has_audio,
+        'sections': [
+            {
+                'header': section['header'],
+                'content': section['content']
+            }
+            for section in summary_obj.sections
+        ] if summary_obj.sections else []
     }
     
     if not summary['has_audio']:

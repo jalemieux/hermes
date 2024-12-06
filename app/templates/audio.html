@@ -18,7 +18,7 @@
                     </svg>
                 </a>
             </div>
-            <p class="mt-2 text-sm text-gray-600">{{ summary.start_date }} - {{ summary.end_date }}</p>
+            <p class="mt-2 text-sm text-gray-600">{{ summary.end_date }}</p>
         </div>
 
         <!-- Audio Player -->
@@ -57,6 +57,19 @@
                         <text x="3" y="15" font-size="8" fill="currentColor">10</text>
                     </svg>
                 </button>
+            </div>
+        </div>
+
+        <!-- Summary Content -->
+        <div class="space-y-6">
+            <!-- Sections -->
+            <div class="space-y-6">
+                {% for section in summary.sections %}
+                    <div>
+                        <h2 class="text-xl font-semibold mb-2">{{ section.header }}</h2>
+                        <p class="text-gray-700">{{ section.content }}</p>
+                    </div>
+                {% endfor %}
             </div>
         </div>
 
