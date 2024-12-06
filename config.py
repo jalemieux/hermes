@@ -6,8 +6,6 @@ class Config:
     # PostgreSQL database URL
     SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL') or \
         'postgresql://myuser:mypassword@localhost:5432/hermes'
-    
-    SQLALCHEMY_TRACK_MODIFICATIONS = False
     OPENAI_API_KEY = os.environ.get('OPENAI_API_KEY')
     MAILSLURP_API_KEY = os.environ.get('MAILSLURP_API_KEY')
     GOOGLE_CLIENT_ID = os.environ.get('GOOGLE_CLIENT_ID')

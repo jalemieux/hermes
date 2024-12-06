@@ -1,11 +1,14 @@
 # app/models.py
 from flask_sqlalchemy import SQLAlchemy
+import sqlalchemy
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_login import UserMixin
 from datetime import datetime
 import json
 
-db = SQLAlchemy()
+from config import Config
+
+db = SQLAlchemy(engine_options={'pool_pre_ping': True})
 
 class User(UserMixin, db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -26,6 +29,8 @@ class User(UserMixin, db.Model):
     #summaries = db.relationship('Summary', backref='user', lazy=True)
 
     email_forwarding_enabled = db.Column(db.Boolean, default=False)
+    # SQL equivalent:
+    # ALTER TABLE user ADD COLUMN email_forwarding_enabled BOOLEAN DEFAULT FALSE;
 
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)
@@ -57,6 +62,8 @@ class Summary(db.Model):
     
     # Add this line to existing model
     email_ids = db.Column(db.JSON)  # Store array of email IDs used in summary
+    # SQL equivalent:
+    # ALTER TABLE summary ADD COLUMN audio_filename VARCHAR(255);
     audio_filename = db.Column(db.String(255))
 
     def to_dict(self):
