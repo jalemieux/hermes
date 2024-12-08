@@ -4,8 +4,8 @@ class Config:
     SECRET_KEY = os.environ.get('SECRET_KEY') or 'your-secret-key'
     
     # Gmail SMTP Settings
-    GMAIL_SENDER_EMAIL = os.environ.get('GMAIL_SENDER_EMAIL') or "jalemieux@gmail.com"
-    GMAIL_APP_PASSWORD = os.environ.get('GMAIL_APP_PASSWORD') or "mwrd bxrd qqqz sgds"
+    GMAIL_SENDER_EMAIL = os.environ.get('GMAIL_SENDER_EMAIL')
+    GMAIL_APP_PASSWORD = os.environ.get('GMAIL_APP_PASSWORD')
     
     # PostgreSQL database URL
     SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL') or \
@@ -28,3 +28,6 @@ class Config:
     ELEVEN_LABS_VOICE_ID = "nPczCjzI2devNBz1zQrb"  # Replace with your preferred voice ID
     VOICE_GENERATOR = "openai"
     INCLUDE_KEY_POINTS = "false"
+    
+    # For generating absolute URLs
+    SERVER_NAME = os.environ.get('SERVER_NAME', 'localhost:5000')
