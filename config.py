@@ -7,6 +7,7 @@ class Config:
     GMAIL_SENDER_EMAIL = os.environ.get('GMAIL_SENDER_EMAIL')
     GMAIL_APP_PASSWORD = os.environ.get('GMAIL_APP_PASSWORD')
     
+    
     # PostgreSQL database URL
     SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL') or \
         'postgresql://myuser:mypassword@localhost:5432/hermes'

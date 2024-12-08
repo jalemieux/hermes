@@ -226,7 +226,8 @@
         
         const button = document.getElementById('generate-button');
         button.disabled = true;
-        
+        button.classList.add('opacity-50', 'cursor-not-allowed');
+
         const spinner = document.getElementById('summary-loading-spinner');
         
         // Disable button and show spinner
@@ -256,6 +257,7 @@
             // Re-enable button and hide spinner
             button.disabled = false;
             spinner.classList.add('hidden');
+            button.classList.remove('opacity-50', 'cursor-not-allowed');
         }
     });
 
