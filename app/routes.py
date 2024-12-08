@@ -368,7 +368,7 @@ def generate_audio(summary_id):
         
         voice_generator = VoiceClipGenerator()
         audio_filename = f'summary_{summary_id}_{int(datetime.now().timestamp())}.mp3'
-        audio_path = os.path.join('/var/data/audio', audio_filename)
+        audio_path = os.path.join(current_app.config['AUDIO_DIR'], audio_filename)
         
         success = voice_generator.generate_voice_clip(summary_id, audio_path)
         
@@ -450,7 +450,7 @@ def get_audio_file(summary_id):
     if not summary.audio_filename:
         return jsonify({'error': 'No audio file available'}), 404
         
-    audio_path = os.path.join('/var/data', summary.audio_filename)
+    audio_path = os.path.join(current_app.config['AUDIO_DIR'], summary.audio_filename)
     
     if not os.path.exists(audio_path):
         return jsonify({'error': 'Audio file not found'}), 404

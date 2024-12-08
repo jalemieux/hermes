@@ -32,3 +32,4 @@ class Config:
     
     # For generating absolute URLs
     SERVER_NAME = os.environ.get('SERVER_NAME', 'localhost:5000')
+    AUDIO_DIR = '/var/data/audio'

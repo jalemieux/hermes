@@ -11,3 +11,4 @@
 - [ ] integration with google login
 - [x] e2e test
 - [ ] show all emails "newsletter" in inbox
+- [ ] make sure the disk works
