@@ -320,7 +320,6 @@ def listen_summary(summary_id):
         'title': summary_obj.title,
         'start_date': summary_obj.from_date.strftime('%B %d, %Y'),
         'end_date': summary_obj.to_date.strftime('%B %d, %Y'),
-        'audio_url': summary_obj.audio_url,
         'has_audio': summary_obj.has_audio,
         'sections': [
             {

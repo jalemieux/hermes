@@ -24,7 +24,7 @@
         <!-- Audio Player -->
         <div class="rounded-lg border border-gray-200 bg-white p-6">
             <audio id="audioPlayer" class="w-full" controls>
-                <source src="{{ summary.audio_url }}" type="audio/mpeg">
+                <source src="{{ url_for('main.get_audio_file', summary_id=summary.id) }}" type="audio/mpeg">
                 Your browser does not support the audio element.
             </audio>
             
