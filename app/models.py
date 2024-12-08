@@ -3,8 +3,9 @@ from flask_sqlalchemy import SQLAlchemy
 import sqlalchemy
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_login import UserMixin
-from datetime import datetime
+from datetime import datetime, timedelta
 import json
+import secrets
 
 from config import Config
 
@@ -32,11 +33,36 @@ class User(UserMixin, db.Model):
     # SQL equivalent:
     # ALTER TABLE user ADD COLUMN email_forwarding_enabled BOOLEAN DEFAULT FALSE;
 
+    # Add fields for password reset
+    reset_token = db.Column(db.String(100), unique=True)
+    reset_token_expiry = db.Column(db.DateTime)
+
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)
 
     def check_password(self, password):
         return check_password_hash(self.password_hash, password)
+
+    def generate_reset_token(self):
+        """Generate a password reset token that expires in 1 hour"""
+        self.reset_token = secrets.token_urlsafe(32)
+        self.reset_token_expiry = datetime.utcnow() + timedelta(hours=1)
+        db.session.commit()
+        return self.reset_token
+
+    def verify_reset_token(self, token):
+        """Verify if the reset token is valid and not expired"""
+        if (self.reset_token != token or 
+            not self.reset_token_expiry or 
+            datetime.utcnow() > self.reset_token_expiry):
+            return False
+        return True
+
+    def clear_reset_token(self):
+        """Clear the reset token after it's been used"""
+        self.reset_token = None
+        self.reset_token_expiry = None
+        db.session.commit()
 
 class Summary(db.Model):
     id = db.Column(db.Integer, primary_key=True)

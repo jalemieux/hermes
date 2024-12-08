@@ -18,6 +18,7 @@ from werkzeug.utils import secure_filename
 
 from app.summary_generator import SummaryGenerator
 from app.voice_generator import VoiceClipGenerator
+from app.email_sender import EmailSender
 logging.basicConfig(level=logging.DEBUG)
 
 
@@ -455,3 +456,75 @@ def get_audio_file(summary_id):
         return jsonify({'error': 'Audio file not found'}), 404
         
     return send_file(audio_path, mimetype='audio/mpeg')
+
+@main.route('/forgot-password', methods=['GET', 'POST'])
+def forgot_password():
+    if request.method == 'POST':
+        email = request.form.get('email')
+        user = User.query.filter_by(email=email).first()
+        
+        if user:
+            token = user.generate_reset_token()
+            reset_link = url_for('main.reset_password', token=token, _external=True)
+            
+            # Send reset link via email using Gmail SMTP
+            try:
+                email_sender = EmailSender()
+                email_sender.send_email(
+                    to_email=user.email,
+                    subject="Reset Your Password - Hermes",
+                    body=f"""
+                    Hello,
+                    
+                    You recently requested to reset your password. Click the link below to set a new password:
+                    
+                    {reset_link}
+                    
+                    This link will expire in 1 hour. If you didn't request this reset, please ignore this email.
+                    
+                    Best regards,
+                    Hermes Team
+                    """
+                )
+                flash('Password reset instructions have been sent to your email.', 'success')
+            except Exception as e:
+                current_app.logger.error(f"Error sending reset email: {e}")
+                flash('An error occurred while sending the reset email. Please try again.', 'error')
+            
+        else:
+            # Don't reveal if email exists or not
+            flash('If an account exists with this email, you will receive password reset instructions.', 'success')
+        
+        return redirect(url_for('main.signin'))
+    
+    return render_template('forgot_password.html')
+
+@main.route('/reset-password/<token>', methods=['GET', 'POST'])
+def reset_password(token):
+    # Find user by reset token
+    user = User.query.filter_by(reset_token=token).first()
+    
+    if not user or not user.verify_reset_token(token):
+        flash('Invalid or expired reset link. Please request a new one.', 'error')
+        return redirect(url_for('main.forgot_password'))
+    
+    if request.method == 'POST':
+        password = request.form.get('password')
+        confirm_password = request.form.get('confirm_password')
+        
+        if not password or not confirm_password:
+            flash('Please enter both password fields.', 'error')
+            return redirect(url_for('main.reset_password', token=token))
+            
+        if password != confirm_password:
+            flash('Passwords do not match.', 'error')
+            return redirect(url_for('main.reset_password', token=token))
+        
+        # Update password and clear reset token
+        user.set_password(password)
+        user.clear_reset_token()
+        
+        flash('Your password has been reset successfully. Please sign in.', 'success')
+        return redirect(url_for('main.signin'))
+    
+    return render_template('reset_password.html')

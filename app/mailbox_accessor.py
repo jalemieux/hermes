@@ -76,3 +76,22 @@ class MailboxAccessor:
             #  'virtual_inbox': False}
         # Add the MailSlurp inbox email_address and id to the user table as MailSlurp attributes
         return inbox.email_address, inbox.id
+
+    def send_email(self, to_email: str, subject: str, body: str):
+        """Send an email using MailSlurp"""
+        with self.api_client as api_client:
+            email_controller = mailslurp_client.EmailControllerApi(api_client)
+            inbox_controller = mailslurp_client.InboxControllerApi(api_client)
+            
+            # Create a temporary inbox for sending
+            inbox = inbox_controller.create_inbox()
+            
+            # Send the email
+            email_controller.send_email(
+                inbox_id=inbox.id,
+                send_email_options=mailslurp_client.SendEmailOptions(
+                    to=[to_email],
+                    subject=subject,
+                    body=body
+                )
+            )
