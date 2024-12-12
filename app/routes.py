@@ -1,6 +1,7 @@
 # app/routes.py
 from flask import Blueprint, render_template, redirect, url_for, request, flash, session, current_app, jsonify, send_file
 from flask_login import login_user, logout_user, login_required, current_user
+from openai import OpenAI
 from app.mailbox_accessor import MailboxAccessor
 from app.models import db, User, Summary, Email
 #from app.utils.oauth import create_google_oauth_flow, credentials_from_user
@@ -527,3 +528,92 @@ def reset_password(token):
         return redirect(url_for('main.signin'))
     
     return render_template('reset_password.html')
+
+@main.route('/chat')
+@login_required
+def chat():
+    # Get summary_id from query params if present
+    summary_id = request.args.get('summary_id')
+    
+    if not summary_id:
+        flash('No summary ID provided', 'error')
+        return redirect(url_for('main.dashboard'))
+    
+    # Load the summary and its emails
+    summary = Summary.query.get(summary_id)
+    if not summary or summary.user_id != current_user.id:
+        flash('Unauthorized access', 'error')
+        return redirect(url_for('main.dashboard'))
+    
+    # Store the email content in the session for the chat context
+    email_ids = [email_id for email_id in summary.email_ids] if summary.email_ids else []
+    emails = Email.query.filter(Email.id.in_(email_ids)).all()
+    emails_content = ""
+    for email in emails:
+        emails_content += email.to_md()
+
+    prompt = """
+You are an AI assistant. You will receive a context window containing various pieces of information
+that may or may not be relevant to the user's query. The user will ask you a question. You should
+answer the user's question using only the information contained in the context window. If the 
+answer cannot be determined from the context, respond with: "I'm sorry, but I don't have enough
+information to answer that." Do not invent details, and do not provide information that is not 
+supported by the context window. If the user's question requires an explanation, use the relevant
+data from the context window to support your response. You must not provide any information that
+is not present or cannot be clearly inferred from the context window.
+    """
+    
+    # Add initial welcome message
+    initial_message = "Hello! I'm here to help you understand the content of this summary. What would you like to know?"
+    
+    session['chat_messages'] = [
+        {"role": "system", "content": prompt},
+        {"role": "assistant", "content": "context window: " + emails_content},
+        {"role": "assistant", "content": initial_message}  # Add the welcome message
+    ]
+    
+    return render_template('chat.html', initial_message=initial_message)  # Pass to template
+
+@main.route('/chat/send', methods=['POST'])
+@login_required
+def chat_send():
+    try:
+        message = request.json.get('message')
+        if not message:
+            return jsonify({
+                'status': 'error',
+                'message': 'No message provided'
+            }), 400
+
+        messages = session.get('chat_messages', [])
+        if not messages:
+            return jsonify({
+                'status': 'error',
+                'message': 'No email context available'
+            }), 400
+        current_app.logger.info(f"Chat messages: {messages}")
+
+        messages.append({"role": "user", "content": message})   
+        openai_client = OpenAI()
+        completion = openai_client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=messages,
+        )
+        
+        # Here you would process the message and generate a response
+        # For now, we'll just echo it back with a mock delay
+        response = completion.choices[0].message.content
+        messages.append({"role": "assistant", "content": response})
+        session['chat_messages'] = messages
+        
+        return jsonify({
+            'status': 'success',
+            'message': response
+        }), 200
+        
+    except Exception as e:
+        current_app.logger.error(f"Chat processing failed: {str(e)}")
+        return jsonify({
+            'status': 'error',
+            'message': f'Failed to process message. Please try again.'
+        }), 400

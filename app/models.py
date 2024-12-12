@@ -186,3 +186,34 @@ class Email(db.Model):
             #     'publisher': source.publisher
             # } for source in self.sources]
         }
+    
+    def to_md(self):
+        """ 
+        Convert the email to a markdown string 
+        """
+        email_context = f"""
+# {self.name}
+*{self.email_date.strftime('%B %d, %Y')}*
+
+## Topics
+"""
+        for topic in self.topics:
+            email_context += f"""
+### {topic.header}
+{topic.summary}
+"""
+            if topic.news:
+                email_context += "\n#### News\n"
+                for news in topic.news:
+                    email_context += f"""
+- **{news.title}**
+  {news.content}
+"""
+            
+            if self.sources:
+                email_context += "\n## Sources\n"
+                for source in self.sources:
+                    email_context += f"""
+- [{source.title}]({source.url}) - {source.publisher}, {source.date}
+"""
+        return email_context

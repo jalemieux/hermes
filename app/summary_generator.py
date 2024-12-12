@@ -24,12 +24,12 @@ class SourceModel(BaseModel):
     publisher: str = Field(description="The publisher of the source")
 
 
-class NewsletterModel(BaseModel):
+class EmailModel(BaseModel):
     topics: list[TopicModel] = Field(description="A list of topics covered in the newsletter")
     sources: list[SourceModel] = Field(description="A list of sources used to create the newsletter")
     name: str = Field(description="The name of the newsletter")
 
-def convert_newsletter_to_text(newsletter: NewsletterModel) -> str:
+def convert_newsletter_to_text(newsletter: EmailModel) -> str:
     text = f"Newsletter: {newsletter.name}\n\n"
     
     for topic in newsletter.topics:
@@ -173,10 +173,10 @@ class SummaryGenerator:
                         {"role": "system", "content": system_prompt},
                         {"role": "user", "content": email_text}
                     ],
-                    response_format=NewsletterModel
+                    response_format=EmailModel
                 )
                 
-                newsletter = response.choices[0].message.parsed
+                email_model = response.choices[0].message.parsed
                 logging.debug("parsed newsletter")
                 
                 
@@ -185,11 +185,11 @@ class SummaryGenerator:
                 email_record = Email(
                     user_id=user_id,
                     unique_identifier=unique_identifier,
-                    name=newsletter.name,
+                    name=email_model.name,
                     email_date=email.created_at
                 )
                 db.session.add(email_record)
-                for topic in newsletter.topics:
+                for topic in email_model.topics:
                     topic_record = Topic(
                         email=email_record,
                         header=topic.header,
@@ -203,7 +203,7 @@ class SummaryGenerator:
                             content=news.content,
                         )
                         db.session.add(news_record)
-                for source in newsletter.sources:
+                for source in email_model.sources:
                     source_record = Source(
                         email=email_record,
                         url=source.url,
