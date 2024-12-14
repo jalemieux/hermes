@@ -131,6 +131,7 @@ def dashboard():
             'read_url': url_for('main.read_summary', summary_id=summary.id),
             'type': 'summary',
             'has_audio': summary.has_audio,
+            'id': summary.id
         }
         for summary in db_summaries
     ]
@@ -149,7 +150,8 @@ def dashboard():
             'end_date': email.created_at.strftime('%B %d, %Y'),
             'read_url': url_for('main.read_email', email_id=email.id),
             'has_audio': email.has_audio,
-            'type': 'email'
+            'type': 'email',
+            'id': email.id
         }
         for email in emails
     ]
