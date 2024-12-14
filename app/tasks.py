@@ -120,7 +120,7 @@ def generate_email_audio():
                 Email.created_at > datetime.now() - timedelta(days=3)
             ).all()
             
-            logger.info(f"Found {len(pending_emails)} emails pending audio generation: {", ".join([pending_email.name for pending_email in pending_emails])}")
+            logger.info(f"Found {len(pending_emails)} emails pending audio generation: {', '.join([pending_email.name for pending_email in pending_emails])}")
             
             summary_generator = SummaryGenerator()
             voice_generator = VoiceClipGenerator()
