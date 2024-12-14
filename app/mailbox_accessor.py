@@ -2,8 +2,11 @@ import logging
 import mailslurp_client
 from datetime import datetime, timedelta
 
+from pydantic import BaseModel
+
 from app.models import User
 from config import Config
+
 
 class MailboxAccessor:
     def __init__(self):
@@ -95,3 +98,4 @@ class MailboxAccessor:
                     body=body
                 )
             )
+

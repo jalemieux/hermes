@@ -3,7 +3,7 @@ from flask import Blueprint, render_template, redirect, url_for, request, flash,
 from flask_login import login_user, logout_user, login_required, current_user
 from openai import OpenAI
 from app.mailbox_accessor import MailboxAccessor
-from app.models import db, User, Summary, Email
+from app.models import Newsletter, db, User, Summary, Email
 #from app.utils.oauth import create_google_oauth_flow, credentials_from_user
 from app.oauth import create_google_oauth_flow
 from datetime import datetime, timedelta
@@ -119,32 +119,6 @@ def signout():
 @main.route('/dashboard')
 @login_required
 def dashboard():
-    # mock_summaries = [
-    #     {
-    #         'title': 'Tech Industry Weekly Roundup',
-    #         'start_date': 'March 11, 2024',
-    #         'end_date': 'March 18, 2024',
-    #         'read_url': url_for('main.read_summary', summary_id=1),
-    #         'has_audio': True,
-    #         'audio_url': url_for('main.listen_summary', summary_id=1)
-    #     },
-    #     {
-    #         'title': 'Climate Change Policy Updates',
-    #         'start_date': 'March 10, 2024',
-    #         'end_date': 'March 17, 2024',
-    #         'read_url': url_for('main.read_summary', summary_id=2),
-    #         'has_audio': True,
-    #         'audio_url': url_for('main.listen_summary', summary_id=2)
-    #     },
-    #     {
-    #         'title': 'Global Economic Outlook',
-    #         'start_date': 'March 9, 2024',
-    #         'end_date': 'March 16, 2024',
-    #         'read_url': url_for('main.read_summary', summary_id=3),
-    #         'has_audio': False,
-    #         'audio_url': None
-    #     }
-    # ]
     # Fetch summaries from the database
     db_summaries = Summary.query.filter_by(user_id=current_user.id, status='completed').order_by(Summary.to_date.desc()).all()
     
@@ -155,23 +129,47 @@ def dashboard():
             'start_date': summary.from_date.strftime('%B %d, %Y'),
             'end_date': summary.to_date.strftime('%B %d, %Y'),
             'read_url': url_for('main.read_summary', summary_id=summary.id),
+            'type': 'summary',
             'has_audio': summary.has_audio,
-            'audio_url': url_for('main.listen_summary', summary_id=summary.id) if summary.has_audio else None
         }
         for summary in db_summaries
     ]
+
+    # fetch non-excluded emails from the database
+    emails = Email.query.filter_by(
+        user_id=current_user.id,
+        is_excluded=False  # Add this condition to filter out excluded emails
+    ).order_by(Email.created_at.desc()).all()
     
-    # Combine mock summaries and db summaries
-    combined_summaries = db_summaries_formatted
+    # Convert db emails to the same format as mock emails
+    emails_formatted = [
+        {
+            'title': email.name,
+            'start_date': email.created_at.strftime('%B %d, %Y'),
+            'end_date': email.created_at.strftime('%B %d, %Y'),
+            'read_url': url_for('main.read_email', email_id=email.id),
+            'has_audio': email.has_audio,
+            'type': 'email'
+        }
+        for email in emails
+    ]
     
-    # Sort combined summaries by end_date (most recent first)
-    combined_summaries.sort(key=lambda x: datetime.strptime(x['end_date'], '%B %d, %Y'), reverse=True)
+    # Combine and sort by end_date (most recent first)
+    combined_summaries = sorted(
+        db_summaries_formatted + emails_formatted,
+        key=lambda x: datetime.strptime(x['end_date'], '%B %d, %Y'),
+        reverse=True
+    )
+    
+    # Get newsletters from the database
+    newsletters = Newsletter.query.filter_by(user_id=current_user.id).order_by(Newsletter.latest_date.desc()).all()
     
     return render_template('dashboard.html',
                          mailslurp_email_address=current_user.mailslurp_email_address,
                          user_email=current_user.email,
                          summaries=combined_summaries,
-                         email_forwarding_enabled=current_user.email_forwarding_enabled)
+                         email_forwarding_enabled=current_user.email_forwarding_enabled,
+                         newsletters=newsletters)
 
 @main.route('/authorize-gmail')
 @login_required
@@ -198,7 +196,7 @@ def oauth2callback():
     # Store credentials in user model
     current_user.google_token = credentials.token
     current_user.google_refresh_token = credentials.refresh_token
-    current_user.google_token_expiry = datetime.utcnow() + timedelta(seconds=credentials.expiry.second)
+    current_user.google_token_expiry = datetime.now() + timedelta(seconds=credentials.expiry.second)
     
     db.session.commit()
     
@@ -307,7 +305,7 @@ def read_summary(summary_id):
     
     return render_template('summary.html', summary=summary_json)
 
-@main.route('/audio/<int:summary_id>')
+@main.route('/audio/summary/<int:summary_id>')
 @login_required
 def listen_summary(summary_id):
     # Fetch the summary from database
@@ -316,12 +314,15 @@ def listen_summary(summary_id):
         flash('Summary not found', 'error')
         return redirect(url_for('main.dashboard'))
 
-    summary = {
-        'id': summary_obj.id,
+    if not summary_obj.has_audio:
+        flash('No audio available for this summary', 'error')
+        return redirect(url_for('main.dashboard'))
+    
+    template_data = {
         'title': summary_obj.title,
-        'start_date': summary_obj.from_date.strftime('%B %d, %Y'),
-        'end_date': summary_obj.to_date.strftime('%B %d, %Y'),
-        'has_audio': summary_obj.has_audio,
+        'date': summary_obj.to_date.strftime('%B %d, %Y'),
+        'back_url': url_for('main.read_summary', summary_id=summary_obj.id),
+        'audio_url': url_for('main.get_audio_file', summary_id=summary_obj.id),
         'sections': [
             {
                 'header': section['header'],
@@ -331,11 +332,7 @@ def listen_summary(summary_id):
         ] if summary_obj.sections else []
     }
     
-    if not summary['has_audio']:
-        flash('No audio available for this summary', 'error')
-        return redirect(url_for('main.dashboard'))
-    
-    return render_template('audio.html', summary=summary)
+    return render_template('audio.html', **template_data)
 
 @main.route('/summary/<int:summary_id>/emails')
 @login_required
@@ -617,3 +614,119 @@ def chat_send():
             'status': 'error',
             'message': f'Failed to process message. Please try again.'
         }), 400
+
+@main.route('/email/<int:email_id>')
+@login_required
+def read_email(email_id):
+    # Fetch the email from database
+    email = Email.query.get_or_404(email_id)
+    
+    # Verify the email belongs to the current user
+    if email.user_id != current_user.id:
+        flash('Unauthorized access', 'error')
+        return redirect(url_for('main.dashboard'))
+    
+    return render_template('email.html', email=email)
+
+@main.route('/generate-audio/email/<int:email_id>', methods=['POST'])
+@login_required
+def generate_email_audio(email_id):
+    try:
+        # Create the /var/data directory if it doesn't exist
+        os.makedirs('/var/data/audio', exist_ok=True)
+        
+        voice_generator = VoiceClipGenerator()
+        audio_filename = f'email_{email_id}_{int(datetime.now().timestamp())}.mp3'
+        audio_path = os.path.join(current_app.config['AUDIO_DIR'], audio_filename)
+        
+        success = voice_generator.generate_voice_clip_for_email(email_id, audio_path)
+        
+        if success:
+            # Update the email with the audio filename
+            email = Email.query.get(email_id)
+            email.audio_filename = audio_filename
+            email.has_audio = True
+            db.session.commit()
+            
+            return jsonify({
+                'status': 'success',
+                'message': 'Audio generated successfully'
+            }), 200
+        else:
+            return jsonify({
+                'status': 'error',
+                'message': 'Failed to generate audio'
+            }), 400
+            
+    except Exception as e:
+        current_app.logger.error(f"Audio generation failed: {str(e)}")
+        return jsonify({
+            'status': 'error',
+            'message': f'Failed to generate audio: {str(e)}'
+        }), 400
+
+@main.route('/audio/email/<int:email_id>')
+@login_required
+def listen_email(email_id):
+    email = Email.query.get_or_404(email_id)
+    
+    # Verify the email belongs to the current user
+    if email.user_id != current_user.id:
+        flash('Unauthorized access', 'error')
+        return redirect(url_for('main.dashboard'))
+        
+    if not email.has_audio:
+        flash('No audio available for this email', 'error')
+        return redirect(url_for('main.dashboard'))
+
+    template_data = {
+        'title': email.name,
+        'date': email.email_date.strftime('%B %d, %Y'),
+        'back_url': url_for('main.read_email', email_id=email.id),
+        'audio_url': url_for('main.get_audio_file_email', email_id=email.id),
+        'email': email
+    }
+    
+    return render_template('audio.html', **template_data)
+
+@main.route('/audio-file/email/<int:email_id>')
+@login_required
+def get_audio_file_email(email_id):
+    email = Email.query.get_or_404(email_id)
+    
+    # Verify the email belongs to the current user
+    if email.user_id != current_user.id:
+        return jsonify({'error': 'Unauthorized'}), 403
+        
+    if not email.audio_filename:
+        return jsonify({'error': 'No audio file available'}), 404
+        
+    audio_path = os.path.join(current_app.config['AUDIO_DIR'], email.audio_filename)
+    
+    if not os.path.exists(audio_path):
+        return jsonify({'error': 'Audio file not found'}), 404
+        
+    return send_file(audio_path, mimetype='audio/mpeg')
+
+@main.route('/api/newsletter/<int:newsletter_id>/toggle', methods=['POST'])
+@login_required
+def toggle_newsletter(newsletter_id):
+    newsletter = Newsletter.query.get_or_404(newsletter_id)
+    
+    # Verify the newsletter belongs to the current user
+    if newsletter.user_id != current_user.id:
+        return jsonify({'error': 'Unauthorized'}), 403
+    
+    try:
+        # Toggle the is_active status
+        newsletter.is_active = not newsletter.is_active
+        db.session.commit()
+        
+        return jsonify({
+            'status': 'success',
+            'message': f'Newsletter {"activated" if newsletter.is_active else "deactivated"} successfully',
+            'is_active': newsletter.is_active
+        })
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500

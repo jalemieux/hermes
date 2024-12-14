@@ -97,12 +97,54 @@ class VoiceClipGenerator:
         
         # Export the final audio file
         final_audio.export(output_path, format="mp3")
+    
+   
 
-    def openai_text_to_speech(self, file_path: str, summary: Summary) -> str:
-        segments = self._generate_summary_list(summary)
+    def _generate_email_segments(self, email_text: str) -> list[str]:
+        """Generate a list of text segments from an email.
+        Similar to _generate_summary_list but for email content.
+        
+        Args:
+            email_text: The email content in markdown format
+            
+        Returns:
+            list[str]: A list of text segments suitable for audio generation
+        """
+        # Split by double newlines to get paragraphs
+        segments = []
+        paragraphs = email_text.split('\n\n')
+        
+        for paragraph in paragraphs:
+            # Skip empty paragraphs
+            if not paragraph.strip():
+                continue
+                
+            # Clean up the paragraph
+            cleaned = paragraph.strip()
+            if cleaned:
+                segments.append(cleaned)
+                
+        return segments
+
+    def openai_text_to_speech(self, file_path: str, content, content_type='summary') -> str:
+        """Generate audio file from text using OpenAI's text-to-speech.
+        
+        Args:
+            file_path: Path where to save the audio file
+            content: Either a Summary object or email text string
+            content_type: Either 'summary' or 'email'
+            
+        Returns:
+            str: Path to the generated audio file
+        """
+        # Generate segments based on content type
+        if content_type == 'summary':
+            segments = self._generate_summary_list(content)
+        else:  # email
+            segments = self._generate_email_segments(content)
+            
         audio_segments = []
-        #speech_file_path = Path(__file__).parent / file_path
-
+        
         for segment in segments:
             response = self.client_openai.audio.speech.create(
                 model="tts-1",
@@ -115,10 +157,12 @@ class VoiceClipGenerator:
 
         # Use the new coalesce function instead of direct writing
         self._coalesce_audio_segments(audio_segments, file_path)
+        
         # Clean up temporary audio files
         for tmp_file in audio_segments:
             try:
-                os.remove(tmp_file)
+                if os.path.exists(tmp_file):
+                    os.unlink(tmp_file)
             except OSError as e:
                 logging.warning(f"Error removing temporary file {tmp_file}: {e}")
 

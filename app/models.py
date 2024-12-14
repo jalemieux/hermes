@@ -46,7 +46,7 @@ class User(UserMixin, db.Model):
     def generate_reset_token(self):
         """Generate a password reset token that expires in 1 hour"""
         self.reset_token = secrets.token_urlsafe(32)
-        self.reset_token_expiry = datetime.utcnow() + timedelta(hours=1)
+        self.reset_token_expiry = datetime.now() + timedelta(hours=1)
         db.session.commit()
         return self.reset_token
 
@@ -54,7 +54,7 @@ class User(UserMixin, db.Model):
         """Verify if the reset token is valid and not expired"""
         if (self.reset_token != token or 
             not self.reset_token_expiry or 
-            datetime.utcnow() > self.reset_token_expiry):
+            datetime.now() > self.reset_token_expiry):
             return False
         return True
 
@@ -160,12 +160,16 @@ class Email(db.Model):
     unique_identifier = db.Column(db.Text, unique=True, nullable=False)
     name = db.Column(db.Text, nullable=False)  # Newsletter name
     email_date = db.Column(db.DateTime, nullable=False)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    is_excluded = db.Column(db.Boolean, default=False)
+    created_at = db.Column(db.DateTime, default=datetime.now)
     
     # Relationships
     topics = db.relationship('Topic', backref='email', lazy=True)
     sources = db.relationship('Source', backref='email', lazy=True)
     user = db.relationship('User', backref=db.backref('emails', lazy=True))
+
+    audio_filename = db.Column(db.String(255))
+    has_audio = db.Column(db.Boolean, default=False)
 
     def to_newsletter(self):
         """Convert the email record to a Newsletter object format"""
@@ -217,3 +221,53 @@ class Email(db.Model):
 - [{source.title}]({source.url}) - {source.publisher}, {source.date}
 """
         return email_context
+
+class Newsletter(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    subject = db.Column(db.String(256), nullable=True)
+    sender = db.Column(db.String(256), nullable=True)
+    frequency = db.Column(db.String(64), nullable=True)
+    latest_date = db.Column(db.DateTime, nullable=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
+    name = db.Column(db.String(256), nullable=False)
+    is_active = db.Column(db.Boolean, default=True)
+    user = db.relationship('User', backref=db.backref('newsletters', lazy=True))
+
+    def __repr__(self):
+        return f'<Newsletter {self.name}>'
+
+class TaskExecution(db.Model):
+    """Tracks the execution history of batch tasks"""
+    id = db.Column(db.Integer, primary_key=True)
+    task_name = db.Column(db.String(100), nullable=False)
+    last_success = db.Column(db.DateTime, nullable=True)
+    last_attempt = db.Column(db.DateTime, nullable=False, default=datetime.now)
+    status = db.Column(db.String(20), nullable=False)  # 'success', 'failed'
+    error_message = db.Column(db.Text, nullable=True)
+    
+    __table_args__ = (
+        db.UniqueConstraint('task_name', name='unique_task_name'),
+    )
+    
+    @staticmethod
+    def get_last_success(task_name: str) -> datetime | None:
+        """Get the timestamp of last successful execution for a task"""
+        execution = TaskExecution.query.filter_by(task_name=task_name).first()
+        return execution.last_success if execution else None
+    
+    @staticmethod
+    def record_execution(task_name: str, status: str, error_message: str = None):
+        """Record a task execution"""
+        execution = TaskExecution.query.filter_by(task_name=task_name).first()
+        if not execution:
+            execution = TaskExecution(task_name=task_name)
+        
+        execution.last_attempt = datetime.now()
+        execution.status = status
+        execution.error_message = error_message
+        
+        if status == 'success':
+            execution.last_success = execution.last_attempt
+        
+        db.session.add(execution)
+        db.session.commit()
