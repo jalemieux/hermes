@@ -296,6 +296,73 @@ def create_newsletters_from_emails():
             logging.error(f"Error in create_newsletters_from_emails task: {str(e)}")
             raise
 
+def recreate_newsletters_from_inbox():
+    """
+    Task to recreate Newsletter records based on email sender addresses from inbox.
+    This task:
+    1. Gets all users with mailboxes
+    2. For each user, fetches emails from their inbox
+    3. Creates Newsletter records based on unique sender addresses
+    4. Replaces existing newsletter records for the user
+    """
+    app = create_app()
+    
+    with app.app_context():
+        logger.info("Starting recreate_newsletters_from_inbox task")
+        
+        try:
+            users = User.query.filter(User.mailslurp_inbox_id.isnot(None)).all()
+            mailbox_accessor = MailboxAccessor()
+            
+            for user in users:
+                try:
+                    logger.info(f"Processing user {user.id}")
+                    inbox_id = user.mailslurp_inbox_id
+                    
+                    # Fetch emails from last 30 days
+                    emails = mailbox_accessor.get_emails_from_last_n_days(inbox_id, 30)
+                    logger.info(f"Found {len(emails)} emails for user {user.id}")
+                    
+                    # Get unique senders and their latest emails
+                    sender_map = {}
+                    for email in emails:
+                        sender = email._from
+                        if sender not in sender_map or email.received_date > sender_map[sender]['date']:
+                            sender_map[sender] = {
+                                'date': email.received_date,
+                                'subject': email.subject
+                            }
+                    
+                    # Delete existing newsletters for this user
+                    Newsletter.query.filter_by(user_id=user.id).delete()
+                    
+                    # Create new newsletter records
+                    for sender, info in sender_map.items():
+                        newsletter = Newsletter(
+                            user_id=user.id,
+                            name=sender,  # Using sender email as newsletter name
+                            is_active=True,
+                            sender=sender,
+                            latest_date=info['date']
+                        )
+                        db.session.add(newsletter)
+                        logger.info(f"Created newsletter record for sender: {sender}")
+                    
+                    db.session.commit()
+                    
+                except Exception as e:
+                    logger.error(f"Error processing user {user.id}: {str(e)}")
+                    db.session.rollback()
+                    continue
+            
+            TaskExecution.record_execution('recreate_newsletters_from_inbox', 'success')
+            logger.info("Successfully completed recreate_newsletters_from_inbox task")
+            
+        except Exception as e:
+            logger.error(f"Error in recreate_newsletters_from_inbox: {str(e)}")
+            TaskExecution.record_execution('recreate_newsletters_from_inbox', 'failed', str(e))
+            raise e
+
 if __name__ == "__main__":
     import sys
     
@@ -307,6 +374,7 @@ if __name__ == "__main__":
         print("- process_inbox_emails")
         print("- identify_newsletter_name")
         print("- create_newsletters_from_emails")
+        print("- recreate_newsletters_from_inbox")
         sys.exit(1)
     
     task_name = sys.argv[1]
@@ -321,6 +389,8 @@ if __name__ == "__main__":
         identify_newsletter_name()
     elif task_name == "create_newsletters_from_emails":
         create_newsletters_from_emails()
+    elif task_name == "recreate_newsletters_from_inbox":
+        recreate_newsletters_from_inbox()
     else:
         print(f"Unknown task: {task_name}")
         print("Available tasks:")
@@ -329,4 +399,5 @@ if __name__ == "__main__":
         print("- process_inbox_emails")
         print("- identify_newsletter_name")
         print("- create_newsletters_from_emails")
+        print("- recreate_newsletters_from_inbox")
         sys.exit(1)

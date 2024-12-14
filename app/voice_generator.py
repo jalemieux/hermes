@@ -161,8 +161,7 @@ class VoiceClipGenerator:
         # Clean up temporary audio files
         for tmp_file in audio_segments:
             try:
-                if os.path.exists(tmp_file):
-                    os.unlink(tmp_file)
+                os.remove(tmp_file)
             except OSError as e:
                 logging.warning(f"Error removing temporary file {tmp_file}: {e}")
 
