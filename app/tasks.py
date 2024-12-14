@@ -117,7 +117,7 @@ def generate_email_audio():
                 Email.has_audio == False,
                 Email.is_excluded == False,
                 Newsletter.is_active == True,
-                Email.created_at > datetime.now() - timedelta(days=3)
+                Email.created_at > datetime.now() - timedelta(days=1)
             ).all()
             
             logger.info(f"Found {len(pending_emails)} emails pending audio generation: {', '.join([pending_email.name for pending_email in pending_emails])}")
