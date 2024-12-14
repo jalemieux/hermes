@@ -119,8 +119,8 @@ def signout():
 @main.route('/dashboard')
 @login_required
 def dashboard():
-    # Fetch summaries from the database
-    db_summaries = Summary.query.filter_by(user_id=current_user.id, status='completed').order_by(Summary.to_date.desc()).all()
+    # Fetch summaries from the database (limit 5)
+    db_summaries = Summary.query.filter_by(user_id=current_user.id, status='completed').order_by(Summary.to_date.desc()).limit(5).all()
     
     # Convert db summaries to the same format as mock summaries
     db_summaries_formatted = [
@@ -140,7 +140,7 @@ def dashboard():
     emails = Email.query.filter_by(
         user_id=current_user.id,
         is_excluded=False  # Add this condition to filter out excluded emails
-    ).order_by(Email.created_at.desc()).all()
+    ).order_by(Email.created_at.desc()).limit(10).all()
     
     # Convert db emails to the same format as mock emails
     emails_formatted = [
