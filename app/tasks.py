@@ -4,7 +4,7 @@ import logging
 from pydantic import BaseModel
 from app import create_app
 from app.mailbox_accessor import MailboxAccessor
-from app.models import User, Summary, db, TaskExecution, Newsletter
+from app.models import User, Summary, db, TaskExecution, Newsletter, Email
 from app.summary_generator import SummaryGenerator
 from app.email_sender import EmailSender
 from flask import url_for
@@ -244,6 +244,57 @@ def identify_newsletter_name():
             TaskExecution.record_execution('identify_newsletter_name', 'failed', str(e))
             raise e
 
+def create_newsletters_from_emails():
+    """
+    Task to create Newsletter records from existing Email records.
+    This task looks for emails without corresponding newsletter records and creates them.
+    """
+    app = create_app()
+    
+    with app.app_context():
+        logging.info("Starting create_newsletters_from_emails task")
+            
+        try:
+            users = User.query.filter(User.mailslurp_inbox_id.isnot(None)).all()
+            for user in users:
+                # get unqieu email name from all emails for a given user
+                emails = Email.query.distinct(
+                    Email.name
+                ).filter(
+                    Email.user_id == user.id
+                ).all()
+
+                for email in emails:
+                    logging.info(f"Processing email: {email.name}")
+                    # Skip if newsletter already exists
+                    existing_newsletter = Newsletter.query.filter_by(
+                        user_id=user.id,
+                        name=email.name
+                    ).first()
+                    
+                    if not existing_newsletter:
+                        logging.info(f"Creating new newsletter record: {email.name}")
+                        newsletter = Newsletter(
+                            user_id=user.id,
+                            name=email.name,
+                            is_active=True,
+                            sender="Unknown",
+                            latest_date=datetime.now()
+                        )
+                        db.session.add(newsletter)
+                    else:
+                        logging.debug(f"Newsletter already exists: {email.name}")
+                        
+            
+            db.session.commit()
+            logging.info("Successfully completed create_newsletters_from_emails task")
+            return True
+            
+        except Exception as e:
+            db.session.rollback()
+            logging.error(f"Error in create_newsletters_from_emails task: {str(e)}")
+            raise
+
 if __name__ == "__main__":
     import sys
     
@@ -254,6 +305,7 @@ if __name__ == "__main__":
         print("- generate_email_audio")
         print("- process_inbox_emails")
         print("- identify_newsletter_name")
+        print("- create_newsletters_from_emails")
         sys.exit(1)
     
     task_name = sys.argv[1]
@@ -266,6 +318,8 @@ if __name__ == "__main__":
         process_inbox_emails()
     elif task_name == "identify_newsletter_name":
         identify_newsletter_name()
+    elif task_name == "create_newsletters_from_emails":
+        create_newsletters_from_emails()
     else:
         print(f"Unknown task: {task_name}")
         print("Available tasks:")
@@ -273,4 +327,5 @@ if __name__ == "__main__":
         print("- generate_email_audio")
         print("- process_inbox_emails")
         print("- identify_newsletter_name")
+        print("- create_newsletters_from_emails")
         sys.exit(1)

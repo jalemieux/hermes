@@ -162,7 +162,8 @@ def dashboard():
     )
     
     # Get newsletters from the database
-    newsletters = Newsletter.query.filter_by(user_id=current_user.id).order_by(Newsletter.latest_date.desc()).all()
+    newsletters = Newsletter.query.filter_by(user_id=current_user.id).all()
+    #newsletters = Newsletter.query.filter_by(user_id=current_user.id).order_by(Newsletter.latest_date.desc()).all()
     
     return render_template('dashboard.html',
                          mailslurp_email_address=current_user.mailslurp_email_address,

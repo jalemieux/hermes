@@ -224,15 +224,15 @@ class Email(db.Model):
 
 class Newsletter(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    subject = db.Column(db.String(256), nullable=True)
-    sender = db.Column(db.String(256), nullable=True)
-    frequency = db.Column(db.String(64), nullable=True)
-    latest_date = db.Column(db.DateTime, nullable=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
-    name = db.Column(db.String(256), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    sender = db.Column(db.String(255), nullable=False)
+    name = db.Column(db.String(255), nullable=False)
+    subject = db.Column(db.String(255))
     is_active = db.Column(db.Boolean, default=True)
-    user = db.relationship('User', backref=db.backref('newsletters', lazy=True))
+    latest_date = db.Column(db.DateTime, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.now)
 
+    user = db.relationship('User', backref=db.backref('newsletters', lazy=True))
     def __repr__(self):
         return f'<Newsletter {self.name}>'
 
