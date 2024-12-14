@@ -4,7 +4,7 @@ import logging
 from pydantic import BaseModel
 from app import create_app
 from app.mailbox_accessor import MailboxAccessor
-from app.models import User, Summary, db, TaskExecution, Newsletter, Email
+from app.models import News, Source, Topic, User, Summary, db, TaskExecution, Newsletter, Email
 from app.summary_generator import SummaryGenerator
 from app.email_sender import EmailSender
 from flask import url_for
@@ -184,11 +184,11 @@ def process_inbox_emails():
         db.session.commit()
         db.session.refresh(task_execution)
 
-        last_run = task_execution.last_success or datetime.now() - timedelta(days=3)
+        
         for user in users:
             try:
                 summary_generator = SummaryGenerator()
-                summary_generator.process_inbox_emails(user.id, start_date=last_run)
+                summary_generator.process_inbox_emails(user.id, start_date=datetime.now() - timedelta(days=1))
             except Exception as e:
                 logger.error(f"Error processing user {user.id}: {str(e)}")
                 failures += 1
@@ -326,11 +326,12 @@ def recreate_newsletters_from_inbox():
                     # Get unique senders and their latest emails
                     sender_map = {}
                     for email in emails:
-                        sender = email._from
-                        if sender not in sender_map or email.received_date > sender_map[sender]['date']:
+                        sender = email.sender.name
+                        if sender not in sender_map or email.created_at > sender_map[sender]['date']:
                             sender_map[sender] = {
-                                'date': email.received_date,
-                                'subject': email.subject
+                                'date': email.created_at,
+                                'subject': email.subject, 
+                                'from': email.sender.raw_value
                             }
                     
                     # Delete existing newsletters for this user
@@ -341,6 +342,7 @@ def recreate_newsletters_from_inbox():
                         newsletter = Newsletter(
                             user_id=user.id,
                             name=sender,  # Using sender email as newsletter name
+                            subject=info['from'],
                             is_active=True,
                             sender=sender,
                             latest_date=info['date']
@@ -363,6 +365,143 @@ def recreate_newsletters_from_inbox():
             TaskExecution.record_execution('recreate_newsletters_from_inbox', 'failed', str(e))
             raise e
 
+def delete_emails_without_audio():
+    """
+    Delete emails that have no audio files associated with them.
+    This task:
+    1. Finds all emails where has_audio is False
+    2. Deletes them from the database
+    3. Records the execution status
+    """
+    app = create_app()
+    
+    with app.app_context():
+        logger.info("Starting delete_emails_without_audio task")
+        
+        try:
+            # Find emails without audio
+            emails_to_delete = Email.query.filter_by(has_audio=False).all()
+            count = len(emails_to_delete)
+            logger.info(f"Found {count} emails without audio")
+            
+            # Load related data for logging purposes
+            for email in emails_to_delete:
+                topics = Topic.query.filter_by(email_id=email.id).all()
+                logger.info(f"Will delete {len(topics)} topics for email {email.id}")
+                for topic in topics:
+                    news_items = News.query.filter_by(topic_id=topic.id).all()
+                    logger.info(f"Will delete {len(news_items)} news items for topic {topic.id}")
+                    for news_item in news_items:
+                        db.session.delete(news_item)
+                        logger.info(f"Deleted news item {news_item.id}")
+                    db.session.commit()
+                    logger.info(f"Deleted topic {topic.id}")
+                    db.session.delete(topic)
+                    db.session.commit()
+                
+                sources = Source.query.filter_by(email_id=email.id).all()
+                logger.info(f"Will delete {len(sources)} sources for email {email.id}")
+                for source in sources:
+                    db.session.delete(source)
+                    logger.info(f"Deleted source {source.id}")
+                logger.info(f"Will delete {len(sources)} sources for email {email.id}")
+                
+                db.session.delete(email)
+                logger.info(f"Deleted email {email.id}")
+            
+            
+            
+            TaskExecution.record_execution('delete_emails_without_audio', 'success')
+            logger.info(f"Successfully deleted {count} emails without audio")
+            
+        except Exception as e:
+            db.session.rollback()
+            TaskExecution.record_execution('delete_emails_without_audio', 'failed', str(e))
+            raise e
+
+def print_last_email(user_id):
+    """
+    Fetch and print attributes of the last email received for a given user.
+    
+    Args:
+        user_id: The ID of the user whose inbox should be checked
+    """
+    app = create_app()
+    
+    with app.app_context():
+        try:
+            # Get user and verify mailbox exists
+            user = User.query.get(user_id)
+            if not user or not user.mailslurp_inbox_id:
+                logger.error(f"User {user_id} not found or has no mailbox configured")
+                return False
+            
+            mailbox = MailboxAccessor()
+            
+            # Fetch emails from last day to ensure we get the latest
+            emails = mailbox.get_emails_from_last_n_days(user.mailslurp_inbox_id, 1)
+            
+            if not emails:
+                logger.info("No emails found in the last 24 hours")
+                return False
+            
+            # Get the last email (most recent)
+            last_email = emails[-1]
+            
+            # Print all attributes of the email object using dir()
+            logger.info("All attributes of the email object:")
+            for attr in dir(last_email):
+                # Skip internal/private attributes that start with _
+                if not attr.startswith('_'):
+                    try:
+                        value = getattr(last_email, attr)
+                        # Convert value to string and truncate if too long
+                        if isinstance(value, str) and len(value) > 200:
+                            value = value[:200] + "..."
+                        logger.info(f"{attr}: {value}")
+                    except Exception as e:
+                        logger.info(f"{attr}: <Error accessing attribute: {str(e)}>")
+
+            
+            
+            return True
+            
+        except Exception as e:
+            logger.error(f"Error in print_last_email: {str(e)}")
+            return False
+
+def list_users():
+    """
+    List all users in the system with their IDs and email addresses.
+    """
+    app = create_app()
+    
+    with app.app_context():
+        try:
+            users = User.query.all()
+            
+            if not users:
+                logger.info("No users found in the system")
+                return False
+            
+            logger.info("\nUser List:")
+            logger.info("-" * 50)
+            logger.info(f"{'ID':<6} {'Email':<30} {'Has Mailbox':<12}")
+            logger.info("-" * 50)
+            
+            for user in users:
+                has_mailbox = "Yes" if user.mailslurp_inbox_id else "No"
+                logger.info(f"{user.id:<6} {user.email:<30} {has_mailbox:<12}")
+            
+            logger.info("-" * 50)
+            logger.info(f"Total users: {len(users)}")
+            
+            return True
+            
+        except Exception as e:
+            logger.error(f"Error in list_users: {str(e)}")
+            return False
+
 if __name__ == "__main__":
     import sys
     
@@ -375,6 +514,9 @@ if __name__ == "__main__":
         print("- identify_newsletter_name")
         print("- create_newsletters_from_emails")
         print("- recreate_newsletters_from_inbox")
+        print("- delete_emails_without_audio")
+        print("- print_last_email")
+        print("- list_users")
         sys.exit(1)
     
     task_name = sys.argv[1]
@@ -391,6 +533,17 @@ if __name__ == "__main__":
         create_newsletters_from_emails()
     elif task_name == "recreate_newsletters_from_inbox":
         recreate_newsletters_from_inbox()
+    elif task_name == "delete_emails_without_audio":
+        delete_emails_without_audio()
+    elif task_name == "print_last_email":
+        if len(sys.argv) < 3:
+            print("Please provide a user_id as argument")
+            print("Usage: python -m app.tasks print_last_email <user_id>")
+            sys.exit(1)
+        user_id = int(sys.argv[2])
+        print_last_email(user_id)
+    elif task_name == "list_users":
+        list_users()
     else:
         print(f"Unknown task: {task_name}")
         print("Available tasks:")
@@ -400,4 +553,7 @@ if __name__ == "__main__":
         print("- identify_newsletter_name")
         print("- create_newsletters_from_emails")
         print("- recreate_newsletters_from_inbox")
+        print("- delete_emails_without_audio")
+        print("- print_last_email")
+        print("- list_users")
         sys.exit(1)

@@ -145,7 +145,8 @@ class SummaryGenerator:
         logging.info(f"Starting to process inbox emails for user_id: {user_id}")
         
         mailbox = MailboxAccessor()
-        start_date = datetime.now() - timedelta(days=30)
+        if not start_date:
+            start_date = datetime.now() - timedelta(days=30)
         
         # Get user's inbox ID
         user = User.query.get(user_id)

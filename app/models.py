@@ -66,7 +66,7 @@ class User(UserMixin, db.Model):
 
 class Summary(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='CASCADE'), nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.now)
     content = db.Column(db.Text)
     status = db.Column(db.String(100), default='pending')
@@ -129,7 +129,7 @@ class Summary(db.Model):
 
 class News(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    topic_id = db.Column(db.Integer, db.ForeignKey('topic.id'), nullable=False)
+    topic_id = db.Column(db.Integer, db.ForeignKey('topic.id', ondelete='CASCADE'), nullable=False)
     title = db.Column(db.String(500), nullable=False)
     content = db.Column(db.Text, nullable=False)
     
@@ -139,14 +139,14 @@ class Topic(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     header = db.Column(db.String(500), nullable=False)
     summary = db.Column(db.Text, nullable=False)
-    email_id = db.Column(db.Integer, db.ForeignKey('email.id'), nullable=False)
+    email_id = db.Column(db.Integer, db.ForeignKey('email.id', ondelete='CASCADE'), nullable=False)
 
     news = db.relationship('News', backref='topic', lazy=True)
     #email = db.relationship('Email', backref='topics', lazy=True)
 
 class Source(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    email_id = db.Column(db.Integer, db.ForeignKey('email.id'), nullable=False)
+    email_id = db.Column(db.Integer, db.ForeignKey('email.id', ondelete='CASCADE'), nullable=False)
     url = db.Column(db.String(500), nullable=False)
     date = db.Column(db.String(100), nullable=False)
     title = db.Column(db.String(500), nullable=False)
@@ -156,7 +156,7 @@ class Source(db.Model):
 
 class Email(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='CASCADE'), nullable=False)
     unique_identifier = db.Column(db.Text, unique=True, nullable=False)
     name = db.Column(db.Text, nullable=False)  # Newsletter name
     email_date = db.Column(db.DateTime, nullable=False)
