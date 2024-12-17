@@ -1,15 +1,6 @@
--- Migration: 010 Create audio_files table and remove file-based audio columns
+-- Migration: 005 Create audio_files table
 -- Created: 2024-03-19
 
--- First drop the old audio-related columns
-ALTER TABLE summary 
-    DROP COLUMN IF EXISTS audio_filename,
-    DROP COLUMN IF EXISTS audio_url;
-
-ALTER TABLE email 
-    DROP COLUMN IF EXISTS audio_filename;
-
--- Create the new audio_files table
 CREATE TABLE audio_file (
     id SERIAL PRIMARY KEY,
     filename VARCHAR(255) NOT NULL,
@@ -23,6 +14,6 @@ CREATE TABLE audio_file (
     )
 );
 
--- Create indexes for better query performance
+-- Create indexes
 CREATE INDEX idx_audio_file_summary_id ON audio_file(summary_id);
-CREATE INDEX idx_audio_file_email_id ON audio_file(email_id);
+CREATE INDEX idx_audio_file_email_id ON audio_file(email_id); 

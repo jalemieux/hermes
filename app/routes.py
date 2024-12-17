@@ -3,7 +3,7 @@ from flask import Blueprint, render_template, redirect, url_for, request, flash,
 from flask_login import login_user, logout_user, login_required, current_user
 from openai import OpenAI
 from app.mailbox_accessor import MailboxAccessor
-from app.models import Newsletter, db, User, Summary, Email
+from app.models import Newsletter, db, User, Summary, Email, AudioFile
 #from app.utils.oauth import create_google_oauth_flow, credentials_from_user
 from app.oauth import create_google_oauth_flow
 from datetime import datetime, timedelta
@@ -16,6 +16,7 @@ import random
 import logging
 import os
 from werkzeug.utils import secure_filename
+import io
 
 from app.summary_generator import SummaryGenerator
 from app.voice_generator import VoiceClipGenerator
@@ -492,16 +493,17 @@ def get_audio_file(summary_id):
     # Verify the summary belongs to the current user
     if summary.user_id != current_user.id:
         return jsonify({'error': 'Unauthorized'}), 403
-        
-    if not summary.audio_filename:
-        return jsonify({'error': 'No audio file available'}), 404
-        
-    audio_path = os.path.join(current_app.config['AUDIO_DIR'], summary.audio_filename)
     
-    if not os.path.exists(audio_path):
-        return jsonify({'error': 'Audio file not found'}), 404
-        
-    return send_file(audio_path, mimetype='audio/mpeg')
+    audio_file = AudioFile.query.filter_by(summary_id=summary_id).first()
+    if not audio_file:
+        return jsonify({'error': 'No audio file available'}), 404
+    
+    return send_file(
+        io.BytesIO(audio_file.data),
+        mimetype='audio/mpeg',
+        as_attachment=True,
+        download_name=audio_file.filename
+    )
 
 @main.route('/forgot-password', methods=['GET', 'POST'])
 def forgot_password():
@@ -746,16 +748,17 @@ def get_audio_file_email(email_id):
     # Verify the email belongs to the current user
     if email.user_id != current_user.id:
         return jsonify({'error': 'Unauthorized'}), 403
-        
-    if not email.audio_filename:
-        return jsonify({'error': 'No audio file available'}), 404
-        
-    audio_path = os.path.join(current_app.config['AUDIO_DIR'], email.audio_filename)
     
-    if not os.path.exists(audio_path):
-        return jsonify({'error': 'Audio file not found'}), 404
-        
-    return send_file(audio_path, mimetype='audio/mpeg')
+    audio_file = AudioFile.query.filter_by(email_id=email_id).first()
+    if not audio_file:
+        return jsonify({'error': 'No audio file available'}), 404
+    
+    return send_file(
+        io.BytesIO(audio_file.data),
+        mimetype='audio/mpeg',
+        as_attachment=True,
+        download_name=audio_file.filename
+    )
 
 @main.route('/api/newsletter/<int:newsletter_id>/toggle', methods=['POST'])
 @login_required

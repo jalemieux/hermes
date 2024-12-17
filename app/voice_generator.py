@@ -6,9 +6,10 @@ import uuid
 from elevenlabs import ElevenLabs, VoiceSettings
 from openai import OpenAI
 from config import Config
-from app.models import Summary, db
+from app.models import Email, Summary, db, AudioFile
 from pydub import AudioSegment
 import io
+import tempfile
 
 class VoiceClipGenerator:
     def __init__(self):
@@ -38,7 +39,7 @@ class VoiceClipGenerator:
         
         return segments
     
-    def eleven_labs_text_to_speech(self, file_path, summary: Summary) -> str:
+    def eleven_labs_text_to_speech(self, summary: Summary) -> bytes:
         text = summary.title + "\n\n --- --- --- --- \n\n" 
         text += "Key Points: \n--- --- --- \n"
         for point in summary.key_points:
@@ -59,21 +60,17 @@ class VoiceClipGenerator:
             )
 
         # Save the audio file
-        with open(file_path, 'wb') as file:
-            for chunk in data:
-                file.write(chunk)
-        return file_path
+        buffer = io.BytesIO()
+        for chunk in data:
+            buffer.write(chunk)
+        return buffer.getvalue()
     
 
 
-    def _coalesce_audio_segments(self, audio_segments: list, output_path: str, pause_duration: int = 2000) -> None:
+    def _coalesce_audio_segments(self, audio_segments: list, pause_duration: int = 2000) -> bytes:
         """
         Combines audio segments with pauses between them.
-        
-        Args:
-            audio_segments: List of audio response objects from OpenAI
-            output_path: Path where the final audio file will be saved
-            pause_duration: Duration of pause between segments in milliseconds (default 2000ms = 2s)
+        Returns the combined audio as bytes.
         """
         # Create a silent audio segment for pauses
         silence = AudioSegment.silent(duration=pause_duration)
@@ -82,10 +79,6 @@ class VoiceClipGenerator:
         final_audio = AudioSegment.empty()
         
         for i, segment in enumerate(audio_segments):
-            # Convert the audio bytes to an AudioSegment
-            #segment_bytes = io.BytesIO()
-            #segment.stream_to_file(segment_bytes)
-            #segment_bytes.seek(0)
             logging.info(f"Processing segment {segment}")
             audio_segment = AudioSegment.from_mp3(segment)
             
@@ -96,8 +89,10 @@ class VoiceClipGenerator:
             if i < len(audio_segments) - 1:
                 final_audio += silence
         
-        # Export the final audio file
-        final_audio.export(output_path, format="mp3")
+        # Export to bytes instead of file
+        buffer = io.BytesIO()
+        final_audio.export(buffer, format="mp3")
+        return buffer.getvalue()
     
    
 
@@ -127,16 +122,9 @@ class VoiceClipGenerator:
                 
         return segments
 
-    def openai_text_to_speech(self, file_path: str, content, content_type='summary') -> str:
+    def openai_text_to_speech(self, content, content_type='summary') -> bytes:
         """Generate audio file from text using OpenAI's text-to-speech.
-        
-        Args:
-            file_path: Path where to save the audio file
-            content: Either a Summary object or email text string
-            content_type: Either 'summary' or 'email'
-            
-        Returns:
-            str: Path to the generated audio file
+        Returns the audio data as bytes.
         """
         # Generate segments based on content type
         if content_type == 'summary':
@@ -145,63 +133,86 @@ class VoiceClipGenerator:
             segments = self._generate_email_segments(content)
             
         audio_segments = []
-
-        # Create tmp directory in same location as audio files
-        audio_dir = os.path.dirname(file_path)
+        temp_dir = tempfile.mkdtemp()
         
-        
-        for segment in segments:
-            response = self.client_openai.audio.speech.create(
-                model="tts-1",
-                voice="alloy", 
-                input=segment
-            )
-            tmp_file = f"tmp_{uuid.uuid4()}.mp3"
-            response.write_to_file(os.path.join(audio_dir, tmp_file))
-            audio_segments.append(os.path.join(audio_dir, tmp_file))
+        try:
+            for segment in segments:
+                response = self.client_openai.audio.speech.create(
+                    model="tts-1",
+                    voice="alloy", 
+                    input=segment
+                )
+                tmp_file = os.path.join(temp_dir, f"tmp_{uuid.uuid4()}.mp3")
+                response.write_to_file(tmp_file)
+                audio_segments.append(tmp_file)
 
-        # Use the new coalesce function instead of direct writing
-        self._coalesce_audio_segments(audio_segments, file_path)
-        
-        # Clean up temporary audio files
-        for tmp_file in audio_segments:
-            try:
-                logging.info(f"Removing temporary file {tmp_file}")
-                if os.path.exists(tmp_file):
-                    os.remove(tmp_file)
-            except OSError as e:
-                logging.warning(f"Error removing temporary file {tmp_file}: {e}")
-
-        return file_path
-
-    def generate_voice_clip(self, summary_id, file_path):
-        """
-        Generate a voice clip for a given summary.
-        
-        Args:
-            summary_id: The ID of the summary to generate voice for
+            # Use the new coalesce function to get bytes
+            audio_data = self._coalesce_audio_segments(audio_segments)
             
-        Returns:
-            bool: True if successful, False otherwise
-        """
-        summary = Summary.query.get(summary_id)
-        if not summary:
-            logging.error(f"Summary {summary_id} not found")
+            return audio_data
+            
+        finally:
+            # Clean up temporary files and directory
+            for tmp_file in audio_segments:
+                try:
+                    if os.path.exists(tmp_file):
+                        os.remove(tmp_file)
+                except OSError as e:
+                    logging.warning(f"Error removing temporary file {tmp_file}: {e}")
+            try:
+                os.rmdir(temp_dir)
+            except OSError as e:
+                logging.warning(f"Error removing temporary directory {temp_dir}: {e}")
+
+    def generate_voice_clip(self, summary_id=None, email_id=None):
+        """Generate a voice clip for a given summary or email."""
+        if summary_id:
+            content = Summary.query.get(summary_id)
+            content_type = 'summary'
+            if not content:
+                logging.error(f"Summary {summary_id} not found")
+                return False
+        elif email_id:
+            content = Email.query.get(email_id)
+            content_type = 'email'
+            if not content:
+                logging.error(f"Email {email_id} not found")
+                return False
+        else:
+            logging.error("Neither summary_id nor email_id provided")
             return False
 
-        # Convert text to speech
-        # Generate unique filename based on summary ID and timestamp
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        
-        if Config.VOICE_GENERATOR == "elevenlabs":
-            self.eleven_labs_text_to_speech(file_path, summary)
-        else:
-            self.openai_text_to_speech(file_path, summary)
-        
-        # Update summary record with audio information
-        summary.has_audio = True
-        summary.audio_url = f"/static/audio/summary_{summary_id}_{timestamp}.mp3"
-        db.session.commit()
-        
-        logging.info(f"Successfully generated voice clip for summary {summary_id}")
-        return True 
+        try:
+            # Generate audio data
+            if Config.VOICE_GENERATOR == "elevenlabs":
+                audio_data = self.eleven_labs_text_to_speech(content)
+            else:
+                audio_data = self.openai_text_to_speech(content, content_type)
+            
+            # Create filename
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            filename = f"{'summary' if summary_id else 'email'}_{summary_id or email_id}_{timestamp}.mp3"
+            
+            # Create AudioFile record
+            audio_file = AudioFile(
+                filename=filename,
+                data=audio_data,
+                summary_id=summary_id,
+                email_id=email_id
+            )
+            db.session.add(audio_file)
+            
+            # Update content record
+            if summary_id:
+                content.has_audio = True
+            else:
+                content.has_audio = True
+            
+            db.session.commit()
+            logging.info(f"Successfully generated voice clip for {'summary' if summary_id else 'email'} {summary_id or email_id}")
+            return True
+            
+        except Exception as e:
+            logging.error(f"Error generating voice clip: {str(e)}")
+            db.session.rollback()
+            return False 

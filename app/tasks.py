@@ -4,7 +4,7 @@ import logging
 from pydantic import BaseModel
 from app import create_app
 from app.mailbox_accessor import MailboxAccessor
-from app.models import News, Source, Topic, User, Summary, db, TaskExecution, Newsletter, Email
+from app.models import AudioFile, News, Source, Topic, User, Summary, db, TaskExecution, Newsletter, Email
 from app.summary_generator import SummaryGenerator
 from app.email_sender import EmailSender
 from flask import url_for
@@ -132,18 +132,29 @@ def generate_email_audio():
             # Generate unique filename
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
             audio_filename = f"newsletter_{email.id}_{timestamp}.mp3"
-            audio_path = os.path.join(app.config['AUDIO_DIR'], audio_filename)
+            #audio_path = os.path.join(app.config['AUDIO_DIR'], audio_filename)
             logger.info(f"Generated audio filename: {audio_filename}")
             
             # Generate audio file
             logger.info(f"Generating audio file for email {email.id}")
-            success = voice_generator.openai_text_to_speech(audio_path, audio_text, content_type="email")
+            voice_data = voice_generator.openai_text_to_speech( audio_text, content_type="email")
             
-            if success:
+            if voice_data:
                 # Update email record
                 logger.info(f"Successfully generated audio for email {email.id}, updating database record")
-                email.audio_filename = audio_filename
                 email.has_audio = True
+                # Create or update AudioFile record
+                audio_file = AudioFile.query.filter_by(email_id=email.id).first()
+                if audio_file:
+                    audio_file.filename = audio_filename
+                    audio_file.data = voice_data
+                else:
+                    audio_file = AudioFile(
+                        filename=audio_filename,
+                        data=voice_data,
+                        email_id=email.id
+                    )
+                    db.session.add(audio_file)
                 db.session.commit()
                 logger.info(f"Database record updated for email {email.id}")
             else:

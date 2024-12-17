@@ -72,7 +72,6 @@ class Summary(db.Model):
     status = db.Column(db.String(100), default='pending')
     title = db.Column(db.String(200))
     has_audio = db.Column(db.Boolean, default=False)
-    audio_url = db.Column(db.String(500))
     from_date = db.Column(db.DateTime, nullable=False)
     to_date = db.Column(db.DateTime, nullable=False)
     
@@ -88,10 +87,7 @@ class Summary(db.Model):
     
     # Add this line to existing model
     email_ids = db.Column(db.JSON)  # Store array of email IDs used in summary
-    # SQL equivalent:
-    # ALTER TABLE summary ADD COLUMN audio_filename VARCHAR(255);
-    audio_filename = db.Column(db.String(255))
-
+    
     def to_dict(self):
         """Convert summary to dictionary format matching SummaryModel"""
         return {
@@ -168,7 +164,6 @@ class Email(db.Model):
     sources = db.relationship('Source', backref='email', lazy=True)
     user = db.relationship('User', backref=db.backref('emails', lazy=True))
 
-    audio_filename = db.Column(db.String(255))
     has_audio = db.Column(db.Boolean, default=False)
 
     def to_newsletter(self):
@@ -272,16 +267,17 @@ class TaskExecution(db.Model):
         db.session.add(execution)
         db.session.commit()
 
+# Add this new model after the existing models
 class AudioFile(db.Model):
-    """Model representing stored audio files"""
-    __tablename__ = 'audio_files'
-
     id = db.Column(db.Integer, primary_key=True)
-    filename = db.Column(db.Text, nullable=False)
-    audio_data = db.Column(db.LargeBinary, nullable=False)  # For BYTEA type
-    uploaded_at = db.Column(db.DateTime, default=datetime.now)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='CASCADE'), nullable=False)
-    user = db.relationship('User', backref=db.backref('audio_files', lazy=True))
-
-    def __repr__(self):
-        return f'<AudioFile {self.filename}>'
+    filename = db.Column(db.String(255), nullable=False)
+    data = db.Column(db.LargeBinary, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.now)
+    
+    # Foreign keys for different types of content
+    summary_id = db.Column(db.Integer, db.ForeignKey('summary.id', ondelete='CASCADE'), nullable=True)
+    email_id = db.Column(db.Integer, db.ForeignKey('email.id', ondelete='CASCADE'), nullable=True)
+    
+    # Relationships
+    summary = db.relationship('Summary', backref=db.backref('audio_file', uselist=False))
+    email = db.relationship('Email', backref=db.backref('audio_file', uselist=False))
