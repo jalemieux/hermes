@@ -144,6 +144,10 @@ class VoiceClipGenerator:
             segments = self._generate_email_segments(content)
             
         audio_segments = []
+
+        # Create tmp directory in same location as audio files
+        audio_dir = os.path.dirname(file_path)
+        
         
         for segment in segments:
             response = self.client_openai.audio.speech.create(
@@ -152,7 +156,7 @@ class VoiceClipGenerator:
                 input=segment
             )
             tmp_file = f"tmp_{uuid.uuid4()}.mp3"
-            response.write_to_file(tmp_file)
+            response.write_to_file(os.path.join(audio_dir, tmp_file))
             audio_segments.append(tmp_file)
 
         # Use the new coalesce function instead of direct writing
@@ -161,6 +165,7 @@ class VoiceClipGenerator:
         # Clean up temporary audio files
         for tmp_file in audio_segments:
             try:
+                logging.info(f"Removing temporary file {tmp_file}")
                 os.remove(tmp_file)
             except OSError as e:
                 logging.warning(f"Error removing temporary file {tmp_file}: {e}")

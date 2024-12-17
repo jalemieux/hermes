@@ -642,7 +642,7 @@ def generate_email_audio(email_id):
         audio_filename = f'email_{email_id}_{int(datetime.now().timestamp())}.mp3'
         audio_path = os.path.join(current_app.config['AUDIO_DIR'], audio_filename)
         
-        success = voice_generator.generate_voice_clip_for_email(email_id, audio_path)
+        success = voice_generator.generate_voice_clip(email_id, audio_path)
         
         if success:
             # Update the email with the audio filename
