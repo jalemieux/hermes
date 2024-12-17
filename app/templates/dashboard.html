@@ -102,10 +102,19 @@
                     {% endfor %}
                 </div>
             </div>
+            <div class="rounded-lg border border-gray-200 bg-white p-6">
+                <h2 class="text-xl font-semibold">Gmail Integration</h2>
+                <p class="mt-2 text-gray-600">
+                    Connect your Gmail account to automatically import newsletters. <strong>Coming Soon!</strong>
+                </p>
+                <button class="mt-4 rounded-lg bg-gray-300 px-4 py-2 text-gray-700 cursor-not-allowed" disabled>
+                    Configure Gmail Access
+                </button>
+            </div>
         </div>
 
         <div class="lg:col-span-1 space-y-6">
-            <div class="rounded-lg border border-gray-200 bg-white p-6">
+            <!-- <div class="rounded-lg border border-gray-200 bg-white p-6">
                 <h2 class="text-xl font-semibold">Catch Up</h2>
                 <p class="mt-2 text-sm text-gray-600">If you don't feel like waiting, you can generate a new summary on demand. It will cover the latest news since your last update.</p>
                 
@@ -123,7 +132,7 @@
                         </button>
                     </form>
                 </div>
-            </div>
+            </div> -->
             <div class="rounded-lg border border-gray-200 bg-white p-6">
                 <h2 class="text-xl font-semibold">Your Digest Email</h2>
                 
@@ -176,8 +185,12 @@
                     </form>
                 </div>
             </div>
+            
             <div class="rounded-lg border border-gray-200 bg-white p-6">
                 <h2 class="text-xl font-semibold">Active Newsletters</h2>
+                <p class="mt-2 text-gray-600">
+                    Uncheck which ever newsletters you don't want to summarize and convert to speech.
+                </p>
                 <div class="mt-4 divide-y divide-gray-200">
                     {% if newsletters %}
                         {% for newsletter in newsletters %}
@@ -258,20 +271,7 @@
                 </div>
             </div> -->
 
-            <!-- <div class="rounded-lg border border-gray-200 bg-white p-6">
-                <h2 class="text-xl font-semibold">Gmail Integration</h2>
-                {% if current_user.google_token %}
-                    <p class="mt-2 text-sm text-gray-600">Gmail access is authorized</p>
-                    <a href="{{ url_for('main.authorize_gmail') }}" class="mt-4 inline-block rounded-lg px-4 py-2 font-medium transition-colors bg-gray-100 text-gray-900 hover:bg-gray-200">
-                        Reauthorize Gmail Access
-                    </a>
-                {% else %}
-                    <p class="mt-2 text-sm text-gray-600">Connect your Gmail account to start analyzing your newsletters</p>
-                    <a href="{{ url_for('main.authorize_gmail') }}" class="mt-4 inline-block rounded-lg px-4 py-2 font-medium transition-colors bg-gray-900 text-white hover:bg-gray-800">
-                        Connect Gmail Account
-                    </a>
-                {% endif %}
-            </div> -->
+            
         </div>
     </div>
 </main>
