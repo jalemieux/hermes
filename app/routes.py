@@ -580,25 +580,36 @@ def reset_password(token):
 @main.route('/chat')
 @login_required
 def chat():
-    # Get summary_id from query params if present
+    # Get IDs from query params
     summary_id = request.args.get('summary_id')
+    email_id = request.args.get('email_id')
     
-    if not summary_id:
-        flash('No summary ID provided', 'error')
+    if not summary_id and not email_id:
+        flash('No content ID provided', 'error')
         return redirect(url_for('main.dashboard'))
     
-    # Load the summary and its emails
-    summary = Summary.query.get(summary_id)
-    if not summary or summary.user_id != current_user.id:
-        flash('Unauthorized access', 'error')
-        return redirect(url_for('main.dashboard'))
-    
-    # Store the email content in the session for the chat context
-    email_ids = [email_id for email_id in summary.email_ids] if summary.email_ids else []
-    emails = Email.query.filter(Email.id.in_(email_ids)).all()
-    emails_content = ""
-    for email in emails:
-        emails_content += email.to_md()
+    if summary_id:
+        # Load the summary and its emails
+        summary = Summary.query.get(summary_id)
+        if not summary or summary.user_id != current_user.id:
+            flash('Unauthorized access', 'error')
+            return redirect(url_for('main.dashboard'))
+        
+        # Get content from summary's emails
+        email_ids = [email_id for email_id in summary.email_ids] if summary.email_ids else []
+        emails = Email.query.filter(Email.id.in_(email_ids)).all()
+        content = ""
+        for email in emails:
+            content += email.to_md()
+            
+    else:
+        # Load single email
+        email = Email.query.get(email_id)
+        if not email or email.user_id != current_user.id:
+            flash('Unauthorized access', 'error')
+            return redirect(url_for('main.dashboard'))
+        
+        content = email.to_md()
 
     prompt = """
 You are an AI assistant. You will receive a context window containing various pieces of information
@@ -616,7 +627,7 @@ is not present or cannot be clearly inferred from the context window.
     
     session['chat_messages'] = [
         {"role": "system", "content": prompt},
-        {"role": "assistant", "content": "context window: " + emails_content},
+        {"role": "assistant", "content": "context window: " + content},
         {"role": "assistant", "content": initial_message}  # Add the welcome message
     ]
     
