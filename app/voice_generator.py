@@ -86,6 +86,7 @@ class VoiceClipGenerator:
             #segment_bytes = io.BytesIO()
             #segment.stream_to_file(segment_bytes)
             #segment_bytes.seek(0)
+            logging.info(f"Processing segment {segment}")
             audio_segment = AudioSegment.from_mp3(segment)
             
             # Add the audio segment
@@ -157,7 +158,7 @@ class VoiceClipGenerator:
             )
             tmp_file = f"tmp_{uuid.uuid4()}.mp3"
             response.write_to_file(os.path.join(audio_dir, tmp_file))
-            audio_segments.append(tmp_file)
+            audio_segments.append(os.path.join(audio_dir, tmp_file))
 
         # Use the new coalesce function instead of direct writing
         self._coalesce_audio_segments(audio_segments, file_path)
@@ -166,7 +167,8 @@ class VoiceClipGenerator:
         for tmp_file in audio_segments:
             try:
                 logging.info(f"Removing temporary file {tmp_file}")
-                os.remove(tmp_file)
+                if os.path.exists(tmp_file):
+                    os.remove(tmp_file)
             except OSError as e:
                 logging.warning(f"Error removing temporary file {tmp_file}: {e}")
 
@@ -182,31 +184,24 @@ class VoiceClipGenerator:
         Returns:
             bool: True if successful, False otherwise
         """
-        try:
-            summary = Summary.query.get(summary_id)
-            if not summary:
-                logging.error(f"Summary {summary_id} not found")
-                return False
+        summary = Summary.query.get(summary_id)
+        if not summary:
+            logging.error(f"Summary {summary_id} not found")
+            return False
 
-            
-            # Convert text to speech
-            # Generate unique filename based on summary ID and timestamp
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            #file_path = f"app/static/audio/summary_{summary_id}_{timestamp}.mp3"
-            if Config.VOICE_GENERATOR == "elevenlabs":
-                self.eleven_labs_text_to_speech(file_path, summary)
-            else:
-                self.openai_text_to_speech(file_path, summary)
-            
-            # Update summary record with audio information
-            summary.has_audio = True
-            summary.audio_url = f"/static/audio/summary_{summary_id}_{timestamp}.mp3"
-            db.session.commit()
-            
-            logging.info(f"Successfully generated voice clip for summary {summary_id}")
-            return True
-            
-        except Exception as e:
-            raise e
-            logging.error(f"Error generating voice clip for summary {summary_id}: {str(e)} {e.traceback}")
-            return False 
+        # Convert text to speech
+        # Generate unique filename based on summary ID and timestamp
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        
+        if Config.VOICE_GENERATOR == "elevenlabs":
+            self.eleven_labs_text_to_speech(file_path, summary)
+        else:
+            self.openai_text_to_speech(file_path, summary)
+        
+        # Update summary record with audio information
+        summary.has_audio = True
+        summary.audio_url = f"/static/audio/summary_{summary_id}_{timestamp}.mp3"
+        db.session.commit()
+        
+        logging.info(f"Successfully generated voice clip for summary {summary_id}")
+        return True 

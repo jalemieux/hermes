@@ -106,52 +106,48 @@ def generate_email_audio():
     4. Updates the email records with audio file info
     """
     app = create_app()
-    
     with app.app_context():
-        try:
-            # Get all emails that don't have audio yet
-            pending_emails = Email.query.join(
-                Newsletter, 
-                Email.name == Newsletter.name
-            ).filter(
-                Email.has_audio == False,
-                Email.is_excluded == False,
-                Newsletter.is_active == True,
-                Email.created_at > datetime.now() - timedelta(days=1)
-            ).all()
+        # Get all emails that don't have audio yet
+        pending_emails = Email.query.join(
+            Newsletter, 
+            Email.name == Newsletter.name
+        ).filter(
+            Email.has_audio == False,
+            Email.is_excluded == False,
+            Newsletter.is_active == True,
+            Email.created_at > datetime.now() - timedelta(days=1)
+        ).all()
+        
+        logger.info(f"Found {len(pending_emails)} emails pending audio generation: {', '.join([pending_email.name for pending_email in pending_emails])}")
+        
+        summary_generator = SummaryGenerator()
+        voice_generator = VoiceClipGenerator()
+        for email in pending_emails:
+            logger.info(f"Processing email {email.id} from {email.name}")
             
-            logger.info(f"Found {len(pending_emails)} emails pending audio generation: {', '.join([pending_email.name for pending_email in pending_emails])}")
+            # Convert email content to audio-friendly format
+            logger.info(f"Converting email {email.id} content to audio format")
+            audio_text = summary_generator.convert_to_audio_format(email.to_md())
             
-            summary_generator = SummaryGenerator()
-            voice_generator = VoiceClipGenerator()
+            # Generate unique filename
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            audio_filename = f"newsletter_{email.id}_{timestamp}.mp3"
+            audio_path = os.path.join(app.config['AUDIO_DIR'], audio_filename)
+            logger.info(f"Generated audio filename: {audio_filename}")
             
-            for email in pending_emails:
-                try:
-                    # Convert email content to audio-friendly format
-                    audio_text = summary_generator.convert_to_audio_format(email.to_md())
-                    
-                    # Generate unique filename
-                    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-                    audio_filename = f"newsletter_{email.id}_{timestamp}.mp3"
-                    audio_path = os.path.join(app.config['AUDIO_DIR'], audio_filename)
-                    
-                    # Generate audio file
-                    success = voice_generator.openai_text_to_speech(audio_path, audio_text, content_type="email")
-                    
-                    if success:
-                        # Update email record
-                        email.audio_filename = audio_filename
-                        email.has_audio = True
-                        db.session.commit()
-                        logger.info(f"Generated audio for email {email.id}")
-                    
-                except Exception as e:
-                    logger.error(f"Error generating audio for email {email.id}: {str(e)}")
-                    continue
-                    
-        except Exception as e:
-            logger.error(f"Error in generate_email_audio task: {str(e)}")
-
+            # Generate audio file
+            logger.info(f"Generating audio file for email {email.id}")
+            success = voice_generator.openai_text_to_speech(audio_path, audio_text, content_type="email")
+            
+            if success:
+                # Update email record
+                logger.info(f"Successfully generated audio for email {email.id}, updating database record")
+                email.audio_filename = audio_filename
+                email.has_audio = True
+                db.session.commit()
+                logger.info(f"Database record updated for email {email.id}")
+            else:
+                logger.info(f"Failed to generate audio for email {email.id}")
 
 
 def process_inbox_emails():
@@ -222,9 +218,10 @@ def identify_newsletter_name():
                     emails = mailbox_accessor.get_emails_from_last_n_days(inbox_id, 7)
                     logger.info(f"Found {len(emails)} emails for user {user.id}")
                     
-                    for email in emails[:2]:
+                    for email in emails:
                         try:
                             # Get newsletter name for each email
+                            
                             newsletter_info = summary_generator.newsletter_name(email)
                             logger.info(f"Identified newsletter: {newsletter_info.newsletter_name} for email from {email._from}")
                             
@@ -504,6 +501,7 @@ def list_users():
 
 if __name__ == "__main__":
     import sys
+
     
     if len(sys.argv) < 2:
         print("Please provide a task name as argument")

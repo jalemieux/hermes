@@ -779,3 +779,33 @@ def toggle_newsletter(newsletter_id):
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': str(e)}), 500
+
+
+@main.route('/exclude-newsletter', methods=['POST'])
+@login_required
+def exclude_newsletter():
+    newsletter_id = request.form.get('newsletter_id')
+    if not newsletter_id:
+        flash('Newsletter ID is required', 'error')
+        return redirect(url_for('main.dashboard'))
+    
+    try:
+        # Update the email record to mark it as excluded
+        email = Email.query.filter_by(
+            user_id=current_user.id,
+            id=newsletter_id,
+            is_excluded=False
+        ).first()
+        
+        if email:
+            email.is_excluded = True
+            db.session.commit()
+            flash(f'Successfully excluded "{email.name}" from your feed', 'success')
+        else:
+            flash('Newsletter not found or already excluded', 'error')
+            
+    except Exception as e:
+        db.session.rollback()
+        flash('An error occurred while excluding the newsletter', 'error')
+        
+    return redirect(url_for('main.dashboard'))

@@ -187,7 +187,10 @@ class SummaryGenerator:
                 email_text = soup.get_text()
                 logging.debug("Successfully extracted text from email HTML")
 
-                newsletter_name = self.newsletter_name(email).newsletter_name
+                # LLM based name inferrence: 
+                #newsletter_name = self.newsletter_name(email).newsletter_name
+                newsletter_name = email.sender.name
+                logging.info(f"Newsletter name: {email.sender}")
                 # Check if this newsletter name already exists for this user
                 existing_excluded_newsletter = Newsletter.query.filter_by(
                     user_id=user_id,
@@ -229,70 +232,64 @@ class SummaryGenerator:
                 logging.debug(f"Successfully parsed newsletter: {email_model.name}")
                 
                 # Store the email in the database
-                try:
-                    email_record = Email(
-                        user_id=user_id,
-                        unique_identifier=unique_identifier,
-                        name=email_model.name,
-                        email_date=email.created_at
+                email_record = Email(
+                    user_id=user_id,
+                    unique_identifier=unique_identifier,
+                    name=email_model.name,
+                    email_date=email.created_at
+                )
+                db.session.add(email_record)
+                
+                # Add topics
+                for topic in email_model.topics:
+                    topic_record = Topic(
+                        email=email_record,
+                        header=topic.header,
+                        summary=topic.summary
                     )
-                    db.session.add(email_record)
+                    db.session.add(topic_record)
                     
-                    # Add topics
-                    for topic in email_model.topics:
-                        topic_record = Topic(
-                            email=email_record,
-                            header=topic.header,
-                            summary=topic.summary
+                    # Add news items
+                    for news in topic.news:
+                        news_record = News(
+                            topic=topic_record,
+                            title=news.title,
+                            content=news.content,
                         )
-                        db.session.add(topic_record)
-                        
-                        # Add news items
-                        for news in topic.news:
-                            news_record = News(
-                                topic=topic_record,
-                                title=news.title,
-                                content=news.content,
-                            )
-                            db.session.add(news_record)
-                    
-                    # Add sources
-                    for source in email_model.sources:
-                        source_record = Source(
-                            email=email_record,
-                            url=source.url,
-                            date=source.date,
-                            title=source.title,
-                            publisher=source.publisher
-                        )
-                        db.session.add(source_record)
-                    
-                    db.session.commit()
-                    db.session.refresh(email_record)
-                    logging.info(f"Successfully saved email record with ID: {email_record.id}")
+                        db.session.add(news_record)
+                
+                # Add sources
+                for source in email_model.sources:
+                    source_record = Source(
+                        email=email_record,
+                        url=source.url,
+                        date=source.date,
+                        title=source.title,
+                        publisher=source.publisher
+                    )
+                    db.session.add(source_record)
+                
+                db.session.commit()
+                db.session.refresh(email_record)
+                logging.info(f"Successfully saved email record with ID: {email_record.id}")
 
-                    # Process newsletter record
-                    newsletter = Newsletter.query.filter_by(name=email_model.name).first()
-                    if not newsletter:
-                        logging.info(f"Creating new newsletter record: {email_model.name}")
-                        newsletter = Newsletter(
-                            user_id=user_id,
-                            sender=email._from,
-                            name=email_model.name, 
-                            is_active=True,
-                            latest_date=email.created_at
-                        )
-                        db.session.add(newsletter)
-                    else:
-                        logging.debug(f"Updating existing newsletter: {email_model.name}")
-                        newsletter.latest_date = email.created_at
-                    
-                    db.session.commit()
-                    
-                except Exception as e:
-                    logging.error(f"Database error while saving email: {str(e)}")
-                    db.session.rollback()
-                    raise
+                # Process newsletter record
+                newsletter = Newsletter.query.filter_by(name=email_model.name).first()
+                if not newsletter:
+                    logging.info(f"Creating new newsletter record: {email_model.name}")
+                    newsletter = Newsletter(
+                        user_id=user_id,
+                        sender=email._from,
+                        name=email_model.name, 
+                        is_active=True,
+                        latest_date=email.created_at
+                    )
+                    db.session.add(newsletter)
+                else:
+                    logging.debug(f"Updating existing newsletter: {email_model.name}")
+                    newsletter.latest_date = email.created_at
+                
+                db.session.commit()
             else:
                 logging.debug(f"Skipping already processed email: {email.subject}")
 
@@ -313,18 +310,12 @@ class SummaryGenerator:
 
 
     def process_emails(self, emails, user_id):
-        # for each email, look up in db if it exists, 
-        # if it doesnt, extract email text and summarize it with llm
-        # save results in db. 
-        # collect all email ids
-        
         system_prompt = """
         You are a content editor AI. Your task is to process the text of a newsletter and remove all content related to 
         promotions, advertisements, sponsorships, sales pitches, subscription information, and administrative details. 
         Retain only the content that focuses on delivering news, updates, and information relevant to the newsletter's 
         theme or audience. Ensure the resulting output is coherent and focuses solely on newsworthy content.
         """
-        
 
         email_ids = []
         for email in emails:
@@ -334,6 +325,7 @@ class SummaryGenerator:
             email_date = str(int(email.created_at.timestamp()))
             unique_identifier = f"{email_subject}_{email_from}_{email_date}"
             email_record = Email.query.filter_by(unique_identifier=unique_identifier).first()
+            
             # If email doesn't already exist in the database, process it
             if not email_record:
                 logging.debug(f"new email: {email.subject}")
@@ -352,8 +344,6 @@ class SummaryGenerator:
                 
                 email_model = response.choices[0].message.parsed
                 logging.debug("parsed newsletter")
-                
-                
                 
                 # Store the email in the database
                 email_record = Email(
@@ -386,13 +376,11 @@ class SummaryGenerator:
                         publisher=source.publisher
                     )
                     db.session.add(source_record)
-                #db.session.add(email_record)
+                
                 db.session.commit()
                 db.session.refresh(email_record)
                 id = email_record.id
                 logging.debug(f"saved email")
-
-                
             else:
                 id = email_record.id
                 logging.debug(f"existing email: {email.subject}")
@@ -438,7 +426,7 @@ class SummaryGenerator:
             start_date, end_date = self._get_date_range(user_id)
         logging.info(f"start_date: {start_date}, end_date: {end_date}")
 
-        emails = self.fetch_emails(inbox_id, start_date, x)
+        emails = self.fetch_emails(inbox_id, start_date, end_date)
         logging.info(f"Fetched {len(emails)} emails")
         if len(emails) == 0:
             logging.info(f"No emails found")

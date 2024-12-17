@@ -49,12 +49,13 @@
                                 </div>
                                 {% endif %}
                                 
-                                <h3 class="font-medium text-gray-900 mb-1">{{ summary.title }}</h3>
+                              <h3 class="font-medium text-gray-900 mb-1">{{ summary.title }}</h3>
                                 <p class="text-sm text-gray-600">
                                     {% if summary.type == 'summary' %}
                                         {{ summary.start_date }} - {{ summary.end_date }}
                                     {% else %}
                                         {{ summary.end_date }}
+                                        {{summary.type }}
                                     {% endif %}
                                 </p>
                             </div>
@@ -81,7 +82,20 @@
                                     Listen
                                 </a>
                                 {% endif %}
-                                
+                                {% if summary.type == 'email' %}
+                                <form action="{{ url_for('main.exclude_newsletter') }}" method="POST" class="inline">
+                                    <input type="hidden" name="newsletter_id" value="{{ summary.id }}">
+                                    <button type="submit" 
+                                            class="inline-flex items-center justify-center rounded-lg w-10 h-10 transition-colors hover:bg-gray-100" 
+                                            title="Exclude Newsletter">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                            <circle cx="12" cy="12" r="10"/>
+                                            <line x1="15" y1="9" x2="9" y2="15"/>
+                                            <line x1="9" y1="9" x2="15" y2="15"/>
+                                        </svg>
+                                    </button>
+                                </form>
+                                {% endif %}
                             </div>
                         </div>
                     </div>
