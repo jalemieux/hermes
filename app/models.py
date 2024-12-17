@@ -271,3 +271,17 @@ class TaskExecution(db.Model):
         
         db.session.add(execution)
         db.session.commit()
+
+class AudioFile(db.Model):
+    """Model representing stored audio files"""
+    __tablename__ = 'audio_files'
+
+    id = db.Column(db.Integer, primary_key=True)
+    filename = db.Column(db.Text, nullable=False)
+    audio_data = db.Column(db.LargeBinary, nullable=False)  # For BYTEA type
+    uploaded_at = db.Column(db.DateTime, default=datetime.now)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='CASCADE'), nullable=False)
+    user = db.relationship('User', backref=db.backref('audio_files', lazy=True))
+
+    def __repr__(self):
+        return f'<AudioFile {self.filename}>'
