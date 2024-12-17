@@ -72,7 +72,7 @@
             spinner.classList.remove('hidden');
             btnText.textContent = 'Generating...';
             
-            fetch(`/generate-audio/{{ summary.id }}`, {
+            fetch(`/generate-audio/summary/{{ summary.id }}`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',

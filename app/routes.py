@@ -358,8 +358,54 @@ def summary_emails(summary_id):
     }
     
     return render_template('summary_emails.html', summary=summary_json, emails=emails)
+@main.route('/generate-audio/email/<int:email_id>', methods=['POST'])
+@login_required
+def generate_audio_email(email_id):
+    try:
 
-@main.route('/generate-audio/<int:summary_id>', methods=['POST'])
+        # fetch email by id
+        email = Email.query.get(email_id)
+        if not email:
+            return jsonify({'status': 'error', 'message': 'Email not found'}), 404
+        
+        voice_generator = VoiceClipGenerator()
+        summary_generator = SummaryGenerator()
+        # Convert email content to audio-friendly format
+        audio_text = summary_generator.convert_to_audio_format(email.to_md())
+        
+        # Generate unique filename
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        audio_filename = f"newsletter_{email.id}_{timestamp}.mp3"
+        audio_path = os.path.join(current_app.config['AUDIO_DIR'], audio_filename)
+        
+        # Generate audio file
+        success = voice_generator.openai_text_to_speech(audio_path, audio_text, content_type="email")
+        
+        if success:
+            # Update email record
+            email.audio_filename = audio_filename
+            email.has_audio = True
+            db.session.commit()
+            logging.info(f"Generated audio for email {email.id}")    
+            return jsonify({
+                'status': 'success',
+                'message': 'Audio generated successfully'
+            }), 200
+        else:
+            return jsonify({
+                'status': 'error',
+                'message': 'Failed to generate audio'
+            }), 400
+            
+    except Exception as e:
+        current_app.logger.error(f"Audio generation failed: {str(e)}")
+        return jsonify({
+            'status': 'error',
+            'message': f'Failed to generate audio: {str(e)}'
+        }), 400
+
+
+@main.route('/generate-audio/summary/<int:summary_id>', methods=['POST'])
 @login_required
 def generate_audio(summary_id):
     try:
