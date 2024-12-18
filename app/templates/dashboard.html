@@ -112,16 +112,65 @@
                         </div>
                         {% endfor %}
                     {% endif %}
+                     <!-- Pagination Controls -->
+                     <div class="flex justify-between items-center mt-6 p-4 bg-white ">
+                        {% if page > 1 %}
+                        <a href="{{ url_for('main.dashboard', page=page-1) }}" class="text-blue-700 hover:text-blue-900 font-medium">Previous</a>
+                        {% else %}
+                        <span class="text-gray-400 text-sm">Previous</span>
+                        {% endif %}
+
+                        <span class="text-gray-600 text-sm ">Page {{ page }} of {{ total_pages }}</span>
+
+                        {% if page < total_pages %}
+                        <a href="{{ url_for('main.dashboard', page=page+1) }}" class="text-blue-700 hover:text-blue-900 font-medium">Next</a>
+                        {% else %}
+                        <span class="text-gray-400 text-sm ">Next</span>
+                        {% endif %}
+                    </div>
                 </div>
             </div>
             <div class="rounded-lg border border-gray-200 bg-white p-6">
-                <h2 class="text-xl font-semibold">Gmail Integration</h2>
-                <p class="mt-2 text-gray-600">
-                    Connect your Gmail account to automatically import newsletters. <strong>Coming Soon!</strong>
-                </p>
-                <button class="mt-4 rounded-lg bg-gray-300 px-4 py-2 text-gray-700 cursor-not-allowed" disabled>
-                    Configure Gmail Access
-                </button>
+                <h2 class="text-xl font-semibold">Upcoming Features</h2>
+                <div class="mt-4 space-y-3">
+                    <div class="flex items-center gap-3 p-3 rounded-lg border border-gray-100 hover:bg-gray-50 transition-colors">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-blue-500">
+                            <rect width="20" height="16" x="2" y="4" rx="2"></rect>
+                            <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"></path>
+                        </svg>
+                        <span class="text-gray-600">Email integration to read newsletters directly</span>
+                    </div>
+                    <div class="flex items-center gap-3 p-3 rounded-lg border border-gray-100 hover:bg-gray-50 transition-colors">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-purple-500">
+                            <path d="M12 2v8"></path><path d="m16 6-4 4-4-4"></path>
+                            <rect x="2" y="14" width="20" height="8" rx="2"></rect>
+                        </svg>
+                        <span class="text-gray-600">Recommend newsletters based on your tastes</span>
+                    </div>
+                    <div class="flex items-center gap-3 p-3 rounded-lg border border-gray-100 hover:bg-gray-50 transition-colors">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-green-500">
+                            <rect x="3" y="3" width="18" height="18" rx="2"></rect>
+                            <path d="M3 9h18"></path>
+                            <path d="M9 21V9"></path>
+                        </svg>
+                        <span class="text-gray-600">Display available newsletters</span>
+                    </div>
+                    <div class="flex items-center gap-3 p-3 rounded-lg border border-gray-100 hover:bg-gray-50 transition-colors">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-red-500">
+                            <path d="M12 2v8"></path>
+                            <circle cx="12" cy="14" r="8"></circle>
+                            <path d="M12 18v4"></path>
+                        </svg>
+                        <span class="text-gray-600">Highlights of podcasts with noteworthy news</span>
+                    </div>
+                    <div class="flex items-center gap-3 p-3 rounded-lg border border-gray-100 hover:bg-gray-50 transition-colors">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-orange-500">
+                            <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path>
+                            <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>
+                        </svg>
+                        <span class="text-gray-600">Other news sources like websites</span>
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -284,8 +333,11 @@
             </div> -->
 
             
+            
         </div>
     </div>
+
+   
 </main>
 
 <script>

@@ -2,7 +2,7 @@ from datetime import datetime, timedelta
 import hashlib
 import logging
 from typing import List
-from app.models import Email, News, Newsletter, Source, Summary, Topic, User, db
+from app.models import AudioFile, Email, News, Newsletter, Source, Summary, Topic, User, db
 from app.mailbox_accessor import MailboxAccessor
 from bs4 import BeautifulSoup
 import openai
@@ -518,6 +518,9 @@ class SummaryGenerator:
             response_format=NewsletterNameModel
         )
         return parsed.choices[0].message.parsed
+    
+
+    
 
 def test_fetch_emails(summary_generator):
     user_id = 1

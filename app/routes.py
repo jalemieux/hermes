@@ -138,9 +138,15 @@ def signout():
 @main.route('/dashboard')
 @login_required
 def dashboard():
-    # Fetch summaries from the database (limit 5)
-    db_summaries = Summary.query.filter_by(user_id=current_user.id, status='completed').order_by(Summary.to_date.desc()).limit(5).all()
-    
+    # Get the current page number from the query string, default to 1
+    page = request.args.get('page', 1, type=int)
+    per_page = 10  # Number of items per page
+
+    # Fetch summaries from the database with pagination
+    db_summaries = Summary.query.filter_by(user_id=current_user.id, status='completed') \
+                                .order_by(Summary.to_date.desc()) \
+                                .paginate(page=page, per_page=per_page, error_out=False)
+
     # Convert db summaries to the same format as mock summaries
     db_summaries_formatted = [
         {
@@ -152,15 +158,14 @@ def dashboard():
             'has_audio': summary.has_audio,
             'id': summary.id
         }
-        for summary in db_summaries
+        for summary in db_summaries.items
     ]
 
-    # fetch non-excluded emails from the database
-    emails = Email.query.filter_by(
-        user_id=current_user.id,
-        is_excluded=False  # Add this condition to filter out excluded emails
-    ).order_by(Email.created_at.desc()).limit(10).all()
-    
+    # Fetch non-excluded emails from the database with pagination
+    emails = Email.query.filter_by(user_id=current_user.id, is_excluded=False) \
+                        .order_by(Email.created_at.desc()) \
+                        .paginate(page=page, per_page=per_page, error_out=False)
+
     # Convert db emails to the same format as mock emails
     emails_formatted = [
         {
@@ -172,26 +177,27 @@ def dashboard():
             'type': 'email',
             'id': email.id
         }
-        for email in emails
+        for email in emails.items
     ]
-    
+
     # Combine and sort by end_date (most recent first)
     combined_summaries = sorted(
         db_summaries_formatted + emails_formatted,
         key=lambda x: datetime.strptime(x['end_date'], '%B %d, %Y'),
         reverse=True
     )
-    
+
     # Get newsletters from the database
     newsletters = Newsletter.query.filter_by(user_id=current_user.id).all()
-    #newsletters = Newsletter.query.filter_by(user_id=current_user.id).order_by(Newsletter.latest_date.desc()).all()
-    
+
     return render_template('dashboard.html',
-                         mailslurp_email_address=current_user.mailslurp_email_address,
-                         user_email=current_user.email,
-                         summaries=combined_summaries,
-                         email_forwarding_enabled=current_user.email_forwarding_enabled,
-                         newsletters=newsletters)
+                           mailslurp_email_address=current_user.mailslurp_email_address,
+                           user_email=current_user.email,
+                           summaries=combined_summaries,
+                           email_forwarding_enabled=current_user.email_forwarding_enabled,
+                           newsletters=newsletters,
+                           page=page,
+                           total_pages=max(db_summaries.pages, emails.pages))
 
 @main.route('/authorize-gmail')
 @login_required
@@ -388,24 +394,9 @@ def generate_audio_email(email_id):
             return jsonify({'status': 'error', 'message': 'Email not found'}), 404
         
         voice_generator = VoiceClipGenerator()
-        summary_generator = SummaryGenerator()
-        # Convert email content to audio-friendly format
-        audio_text = summary_generator.convert_to_audio_format(email.to_md())
-        
-        # Generate unique filename
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        audio_filename = f"newsletter_{email.id}_{timestamp}.mp3"
-        audio_path = os.path.join(current_app.config['AUDIO_DIR'], audio_filename)
-        
-        # Generate audio file
-        success = voice_generator.openai_text_to_speech(audio_path, audio_text, content_type="email")
-        
+        success = voice_generator.email_to_audio(email)
+
         if success:
-            # Update email record
-            email.audio_filename = audio_filename
-            email.has_audio = True
-            db.session.commit()
-            logging.info(f"Generated audio for email {email.id}")    
             return jsonify({
                 'status': 'success',
                 'message': 'Audio generated successfully'

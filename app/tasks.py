@@ -120,45 +120,9 @@ def generate_email_audio():
         
         logger.info(f"Found {len(pending_emails)} emails pending audio generation: {', '.join([pending_email.name for pending_email in pending_emails])}")
         
-        summary_generator = SummaryGenerator()
         voice_generator = VoiceClipGenerator()
         for email in pending_emails:
-            logger.info(f"Processing email {email.id} from {email.name}")
-            
-            # Convert email content to audio-friendly format
-            logger.info(f"Converting email {email.id} content to audio format")
-            audio_text = summary_generator.convert_to_audio_format(email.to_md())
-            
-            # Generate unique filename
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            audio_filename = f"newsletter_{email.id}_{timestamp}.mp3"
-            #audio_path = os.path.join(app.config['AUDIO_DIR'], audio_filename)
-            logger.info(f"Generated audio filename: {audio_filename}")
-            
-            # Generate audio file
-            logger.info(f"Generating audio file for email {email.id}")
-            voice_data = voice_generator.openai_text_to_speech( audio_text, content_type="email")
-            
-            if voice_data:
-                # Update email record
-                logger.info(f"Successfully generated audio for email {email.id}, updating database record")
-                email.has_audio = True
-                # Create or update AudioFile record
-                audio_file = AudioFile.query.filter_by(email_id=email.id).first()
-                if audio_file:
-                    audio_file.filename = audio_filename
-                    audio_file.data = voice_data
-                else:
-                    audio_file = AudioFile(
-                        filename=audio_filename,
-                        data=voice_data,
-                        email_id=email.id
-                    )
-                    db.session.add(audio_file)
-                db.session.commit()
-                logger.info(f"Database record updated for email {email.id}")
-            else:
-                logger.info(f"Failed to generate audio for email {email.id}")
+            voice_generator.email_to_audio(email)
 
 
 def process_inbox_emails():

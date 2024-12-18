@@ -5,6 +5,7 @@ from pathlib import Path
 import uuid
 from elevenlabs import ElevenLabs, VoiceSettings
 from openai import OpenAI
+from app.summary_generator import SummaryGenerator
 from config import Config
 from app.models import Email, Summary, db, AudioFile
 from pydub import AudioSegment
@@ -216,3 +217,44 @@ class VoiceClipGenerator:
             logging.error(f"Error generating voice clip: {str(e)}")
             db.session.rollback()
             return False 
+        
+    def email_to_audio(self, email) -> bool:
+        logging.info(f"Processing email {email.id} from {email.name}")
+            
+        # Convert email content to audio-friendly format
+        logging.info(f"Converting email {email.id} content to audio format")
+        summary_generator = SummaryGenerator()
+        audio_text = summary_generator.convert_to_audio_format(email.to_md())
+        
+        # Generate unique filename
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        audio_filename = f"newsletter_{email.id}_{timestamp}.mp3"
+        #audio_path = os.path.join(app.config['AUDIO_DIR'], audio_filename)
+        logging.info(f"Generated audio filename: {audio_filename}")
+        
+        # Generate audio file
+        logging.info(f"Generating audio file for email {email.id}")
+        voice_data = self.openai_text_to_speech( audio_text, content_type="email")
+        
+        if voice_data:
+            # Update email record
+            logging.info(f"Successfully generated audio for email {email.id}, updating database record")
+            email.has_audio = True
+            # Create or update AudioFile record
+            audio_file = AudioFile.query.filter_by(email_id=email.id).first()
+            if audio_file:
+                audio_file.filename = audio_filename
+                audio_file.data = voice_data
+            else:
+                audio_file = AudioFile(
+                    filename=audio_filename,
+                    data=voice_data,
+                    email_id=email.id
+                )
+                db.session.add(audio_file)
+            db.session.commit()
+            logging.info(f"Database record updated for email {email.id}")
+            return True
+        else:
+            logging.info(f"Failed to generate audio for email {email.id}")
+            return False
