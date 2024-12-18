@@ -3,7 +3,7 @@ from flask import Blueprint, render_template, redirect, url_for, request, flash,
 from flask_login import login_user, logout_user, login_required, current_user
 from openai import OpenAI
 from app.mailbox_accessor import MailboxAccessor
-from app.models import Newsletter, db, User, Summary, Email, AudioFile
+from app.models import Newsletter, db, User, Summary, Email, AudioFile, Invitation
 #from app.utils.oauth import create_google_oauth_flow, credentials_from_user
 from app.oauth import create_google_oauth_flow
 from datetime import datetime, timedelta
@@ -39,11 +39,17 @@ def signup():
     if request.method == 'POST':
         email = request.form.get('email')
         password = request.form.get('password')
-        digest_frequency = request.form.get('digest_frequency')
+        invitation_token = request.form.get('invitation_token')
 
         # Basic validation
         if not email or not password:
             flash('Email and password are required', 'error')
+            return redirect(url_for('main.signup'))
+
+        # Check invitation
+        invitation = Invitation.query.filter_by(token=invitation_token, email=email, used=False).first()
+        if not invitation or invitation.expires_at < datetime.utcnow():
+            flash('Invalid or expired invitation', 'error')
             return redirect(url_for('main.signup'))
 
         # Email format validation
@@ -58,7 +64,7 @@ def signup():
             return redirect(url_for('main.signin', email=email))
 
         # Create new user
-        user = User(email=email, digest_frequency=digest_frequency)
+        user = User(email=email)
         user.set_password(password)
         
         mailbox_accessor = MailboxAccessor()
@@ -68,24 +74,36 @@ def signup():
         user.mailslurp_email_address = inbox_email_address
         user.mailslurp_inbox_id = inbox_id
 
+        # Mark invitation as used
+        invitation.used = True
+
         try:
             db.session.add(user)
             db.session.commit()
             login_user(user)
-            #flash('Account created successfully!', 'success')
+            flash('Account created successfully!', 'success')
             return redirect(url_for('main.dashboard'))
         except Exception as e:
-            current_app.logger.error(f"Error creating user: {e}")
             db.session.rollback()
-            flash('An error occurred. Please try again.', 'error')
+            flash('An error occurred while creating your account.', 'error')
             return redirect(url_for('main.signup'))
 
-    return render_template('signup.html')
+    # For GET request, check if there's an invitation token
+    invitation_token = request.args.get('token')
+    email = request.args.get('email')
+    
+    if invitation_token:
+        invitation = Invitation.query.filter_by(token=invitation_token, email=email, used=False).first()
+        if invitation and invitation.expires_at > datetime.utcnow():
+            return render_template('signup.html', invitation_token=invitation_token, email=email)
+    
+    # If no valid invitation, show invitation-only message
+    return render_template('signup.html', invitation_required=True)
 
 @main.route('/signin', methods=['GET', 'POST'])
 def signin():
     # Clear any existing flash messages at the start of the route
-    #session.pop('_flashes', None)
+    session.pop('_flashes', None)
     
     if request.method == 'POST':
         email = request.form.get('email')
@@ -171,7 +189,7 @@ def dashboard():
     return render_template('dashboard.html',
                          mailslurp_email_address=current_user.mailslurp_email_address,
                          user_email=current_user.email,
-                         summaries=combined_summaries,
+                         summaries=[], #combined_summaries,
                          email_forwarding_enabled=current_user.email_forwarding_enabled,
                          newsletters=newsletters)
 
@@ -823,3 +841,60 @@ def exclude_newsletter():
         flash('An error occurred while excluding the newsletter', 'error')
         
     return redirect(url_for('main.dashboard'))
+
+@main.route('/invite', methods=['GET', 'POST'])
+@login_required
+def invite():
+    if request.method == 'POST':
+        email = request.form.get('email')
+        
+        if not email:
+            flash('Email address is required', 'error')
+            return redirect(url_for('main.invite'))
+            
+        # Check if email already registered
+        if User.query.filter_by(email=email).first():
+            flash('This email is already registered', 'error')
+            return redirect(url_for('main.invite'))
+            
+        # Check if invitation already exists
+        existing_invitation = Invitation.query.filter_by(email=email, used=False).first()
+        if existing_invitation:
+            flash('An invitation has already been sent to this email', 'error')
+            return redirect(url_for('main.invite'))
+            
+        # Create new invitation
+        invitation = Invitation(email=email, invited_by_id=current_user.id)
+        
+        try:
+            db.session.add(invitation)
+            db.session.commit()
+            
+            # Send invitation email
+            invitation_url = url_for('main.signup', token=invitation.token, email=email, _external=True)
+            email_sender = EmailSender()
+            email_sender.send_email(
+                to_email=email,
+                subject="You're invited to join Hermes",
+                body=f"""
+                Hello,
+                
+                You've been invited to join Hermes! Click the link below to create your account:
+                
+                {invitation_url}
+                
+                This invitation will expire in 7 days.
+                
+                Best regards,
+                Hermes Team
+                """
+            )
+            
+            flash('Invitation sent successfully', 'success')
+            return redirect(url_for('main.invite'))
+        except Exception as e:
+            db.session.rollback()
+            flash('An error occurred while sending the invitation', 'error')
+            return redirect(url_for('main.invite'))
+            
+    return render_template('invite.html')

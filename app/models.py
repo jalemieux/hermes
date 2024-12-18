@@ -281,3 +281,18 @@ class AudioFile(db.Model):
     # Relationships
     summary = db.relationship('Summary', backref=db.backref('audio_file', uselist=False))
     email = db.relationship('Email', backref=db.backref('audio_file', uselist=False))
+
+class Invitation(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    email = db.Column(db.String(120), unique=True, nullable=False)
+    token = db.Column(db.String(100), unique=True, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    expires_at = db.Column(db.DateTime, nullable=False)
+    used = db.Column(db.Boolean, default=False)
+    invited_by_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    
+    def __init__(self, email, invited_by_id):
+        self.email = email
+        self.invited_by_id = invited_by_id
+        self.token = secrets.token_urlsafe(32)
+        self.expires_at = datetime.utcnow() + timedelta(days=7)  # Invitation expires in 7 days
