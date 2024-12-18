@@ -218,6 +218,17 @@ class VoiceClipGenerator:
             db.session.rollback()
             return False 
         
+
+    def content_to_audio(self, content, content_type) -> bool:
+        summary_generator = SummaryGenerator()
+        audio_text = summary_generator.convert_to_audio_format(content)
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        
+        voice_data = self.openai_text_to_speech(audio_text, content_type)
+        return audio_text, voice_data
+
+
+
     def email_to_audio(self, email) -> bool:
         logging.info(f"Processing email {email.id} from {email.name}")
             
@@ -226,6 +237,11 @@ class VoiceClipGenerator:
         summary_generator = SummaryGenerator()
         audio_text = summary_generator.convert_to_audio_format(email.to_md())
         
+        # Save audio text to email object
+        email.audio_text = audio_text
+        db.session.commit()
+        logging.info(f"Saved audio text for email {email.id}")
+
         # Generate unique filename
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         audio_filename = f"newsletter_{email.id}_{timestamp}.mp3"
@@ -235,6 +251,7 @@ class VoiceClipGenerator:
         # Generate audio file
         logging.info(f"Generating audio file for email {email.id}")
         voice_data = self.openai_text_to_speech( audio_text, content_type="email")
+        
         
         if voice_data:
             # Update email record

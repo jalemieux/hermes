@@ -91,7 +91,7 @@ class SummaryModel(BaseModel):
     #newsletter_names: list[str] = Field(description="A list of newsletter names used to create the summary")
 
 def convert_summary_to_text(summary: SummaryModel) -> str:
-    text = f"Summary published on: {summary.date_published}\n"
+    text = f"Summary\n"
     text += f"Date range: {summary.from_to_date}\n\n"
     
     text += "Key Points:\n"
@@ -107,9 +107,11 @@ def convert_summary_to_text(summary: SummaryModel) -> str:
     text += "Sources:\n"
     for source in summary.sources:
         text += f"  - {source.title} ({source.publisher}, {source.date}): {source.url}\n"
-
+    text += "\n"
+    
+    text += "Newsletters:\n"
     for newsletter_name in summary.newsletter_names:
-        text += f"Newsletter: {newsletter_name}\n"
+        text += f"  - {newsletter_name}\n"
     
     return text
 

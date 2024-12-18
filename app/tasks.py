@@ -1,11 +1,12 @@
 from datetime import datetime, timedelta
+import json
 import logging
 
 from pydantic import BaseModel
 from app import create_app
 from app.mailbox_accessor import MailboxAccessor
 from app.models import AudioFile, News, Source, Topic, User, Summary, db, TaskExecution, Newsletter, Email
-from app.summary_generator import SummaryGenerator
+from app.summary_generator import SummaryGenerator, convert_summary_to_text
 from app.email_sender import EmailSender
 from flask import url_for
 from app.voice_generator import VoiceClipGenerator
@@ -474,6 +475,199 @@ def list_users():
             logger.error(f"Error in list_users: {str(e)}")
             return False
 
+def generate_weekly_summaries():
+    """
+    Generate weekly summaries for all active users and notify them by email.
+    This function is meant to be called weekly by a cron job.
+    """
+    app = create_app()
+    
+    with app.app_context():
+        try:
+            # Initialize task execution record
+            task_execution = TaskExecution.query.filter_by(task_name='generate_weekly_summaries').first()
+            if not task_execution:
+                task_execution = TaskExecution(task_name='generate_weekly_summaries', status='started', last_success=datetime.now() - timedelta(days=7))
+                db.session.add(task_execution)
+                db.session.commit()
+                db.session.refresh(task_execution)
+            
+            users = User.query.filter(User.mailslurp_inbox_id.isnot(None)).all()
+            logger.info(f"Found {len(users)} users with mailslurp inboxes")
+            
+            summary_generator = SummaryGenerator()
+        
+            email_sender = EmailSender()
+            
+            for user in users:
+                logging.info(f"Generating weekly summary for user {user.id}")
+                try:
+                    logger.info(f"Generating weekly summary for user {user.id}")
+                    new_summary = None
+                    
+                    # Create a new pending summary
+                    new_summary = Summary(
+                        user_id=user.id,
+                        title="",
+                        content="",
+                        from_date=datetime.now() - timedelta(days=7),  # Set start date to 7 days ago
+                        to_date=datetime.now(),
+                        status='pending',
+                        has_audio=False
+                    )
+                    db.session.add(new_summary)
+                    db.session.commit()
+                    db.session.refresh(new_summary)
+                    
+                    # Generate the summary
+                    user = User.query.get(user_id)
+                    inbox_id = user.mailslurp_inbox_id
+
+                    # Set date range for weekly summary
+                    start_date = datetime.now() - timedelta(days=7)
+                    end_date = datetime.now()
+                    logging.info(f"start_date: {start_date}, end_date: {end_date}")
+
+                    # Fetch non-excluded emails from the database within date range
+                    emails = Email.query.filter(
+                        Email.user_id == user.id,
+                        Email.is_excluded == False,
+                        Email.created_at >= start_date,
+                        Email.created_at <= end_date
+                    ).all()
+
+                    logging.info(f"Fetched {len(emails)} emails")
+                    if len(emails) == 0:
+                        logging.info(f"No emails found, nothing to do")
+                        continue
+                    
+                    email_ids = [email.id for email in emails]
+                    summary, sources, newsletter_names = summary_generator.synthesis(email_ids)                    
+
+                    logging.info(f"Synthesized summary")
+                    
+                    new_summary.title = f"Summary {end_date.strftime('%B %d, %Y')}"
+                    new_summary.from_to_date = f"{start_date.strftime('%B %d, %Y')} to {end_date.strftime('%B %d, %Y')}"
+                    new_summary.from_date = start_date
+                    new_summary.to_date = end_date
+                    new_summary.has_audio = False
+                    new_summary.date_published = datetime.now()
+                    new_summary.status = 'completed'
+                    new_summary.key_points = [{"text": point.text} for point in summary.key_points]
+                    new_summary.sections = [{"header": section.header, "content": section.content} for section in summary.sections]
+                    new_summary.sources = [{"url": source.url, "date": source.date, "title": source.title, "publisher": source.publisher} for source in sources]
+                    new_summary.newsletter_names = list(newsletter_names)   
+                    new_summary.email_ids = email_ids
+                    # Add the new summary to the database
+                    db.session.add(new_summary)
+                    db.session.commit()
+                    logger.info(f"Successfully generated weekly summary for user {user.id}")
+                    
+                    # Send email notification
+                    summary_url = url_for('main.read_summary', summary_id=new_summary.id, _external=True)
+                    email_body = f"""
+Hello!
+Your weekly news summary is ready. Here's what we've gathered for you:
+Title: {new_summary.title}
+Period: {new_summary.from_date.strftime('%B %d, %Y')} to {new_summary.to_date.strftime('%B %d, %Y')}
+You can read your full summary here:
+{summary_url}
+Best regards,
+Hermes Team
+                    """
+                    email_sender.send_email(
+                        to_email=user.email,
+                        subject=f"Your Weekly News Summary: {new_summary.title}",
+                        body=email_body
+                    )
+                    logger.info(f"Notification email sent to user {user.id}")
+                    
+                except Exception as e:
+                    logger.error(f"Error generating weekly summary for user {user.id}: {str(e)}")
+                    # Clean up failed summary
+                    if new_summary:
+                        db.session.delete(new_summary)
+                        db.session.commit()
+                    continue
+            
+            # Record successful execution
+            TaskExecution.record_execution('generate_weekly_summaries', 'success')
+                    
+        except Exception as e:
+            logger.error(f"Error in generate_weekly_summaries: {str(e)}")
+            TaskExecution.record_execution('generate_weekly_summaries', 'failed', str(e))
+            raise e
+
+def generate_summary_audio():
+    """
+    Generate audio versions of summaries that don't have audio yet.
+    This function:
+    1. Finds all summaries without audio and not older than 2 weeks
+    2. Converts their content to an audio-friendly format
+    3. Generates audio files using text-to-speech
+    4. Updates the summary records with audio file info
+    """
+    app = create_app()
+    with app.app_context():
+        # Get all users
+        users = User.query.all()
+        logger.info(f"Found {len(users)} users to process summaries for audio generation")
+
+        for user in users:
+            logger.info(f"Processing summaries for user {user.id}")
+            # Get all summaries that don't have audio yet and are not older than 2 weeks
+            two_weeks_ago = datetime.now() - timedelta(weeks=2)
+            pending_summaries = Summary.query.filter(
+                Summary.has_audio == False,
+                Summary.to_date >= two_weeks_ago
+            ).all()
+            
+            logger.info(f"Found {len(pending_summaries)} summaries pending audio generation.")
+            summary_generator = SummaryGenerator()
+            for summary in pending_summaries:
+                if not summary.audio_text:
+                    # Convert summary content to audio-friendly format
+                    summary_speech_text = summary_generator.convert_to_audio_format(str(summary))
+                    summary.audio_text = summary_speech_text
+                    db.session.commit()
+                    logger.info(f"Converted summary {summary.id} to speech text")
+                
+            voice_generator = VoiceClipGenerator()
+            for summary in pending_summaries:
+                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                audio_filename = f"summary_{summary.id}_{timestamp}.mp3"
+                #audio_path = os.path.join(app.config['AUDIO_DIR'], audio_filename)
+                logging.info(f"Generated audio filename: {audio_filename}")
+                
+                # Generate audio file
+                logging.info(f"Generating audio file for summary {summary.id}")
+                voice_data = voice_generator.openai_text_to_speech(summary.audio_text, content_type="speech_summary")
+                
+                
+                if voice_data:
+                    # Update email record
+                    logging.info(f"Successfully generated audio for summary {summary.id}, updating database record")
+                    summary.has_audio = True
+                    # Create or update AudioFile record
+                    audio_file = AudioFile.query.filter_by(summary_id=summary.id).first()
+                    if audio_file:
+                        audio_file.filename = audio_filename
+                        audio_file.data = voice_data
+                    else:
+                        audio_file = AudioFile(
+                            filename=audio_filename,
+                            data=voice_data,
+                            summary_id=summary.id
+                        )
+                        db.session.add(audio_file)
+                    db.session.commit()
+                    logging.info(f"Database record updated for summary {summary.id}")
+                    return True
+                else:
+                    logging.info(f"Failed to generate audio for summary {summary.id}")
+                    return False
+                    
+                    
 if __name__ == "__main__":
     import sys
 
@@ -488,6 +682,8 @@ if __name__ == "__main__":
         print("- create_newsletters_from_emails")
         print("- recreate_newsletters_from_inbox")
         print("- delete_emails_without_audio")
+        print("- generate_weekly_summaries")
+        print("- generate_summary_audio")
         print("- print_last_email")
         print("- list_users")
         sys.exit(1)
@@ -508,6 +704,10 @@ if __name__ == "__main__":
         recreate_newsletters_from_inbox()
     elif task_name == "delete_emails_without_audio":
         delete_emails_without_audio()
+    elif task_name == "generate_weekly_summaries":
+        generate_weekly_summaries()
+    elif task_name == "generate_summary_audio":
+        generate_summary_audio()
     elif task_name == "print_last_email":
         if len(sys.argv) < 3:
             print("Please provide a user_id as argument")
@@ -529,4 +729,6 @@ if __name__ == "__main__":
         print("- delete_emails_without_audio")
         print("- print_last_email")
         print("- list_users")
+        print("- generate_weekly_summaries")
+        print("- generate_summary_audio")
         sys.exit(1)

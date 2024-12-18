@@ -74,6 +74,8 @@ class Summary(db.Model):
     has_audio = db.Column(db.Boolean, default=False)
     from_date = db.Column(db.DateTime, nullable=False)
     to_date = db.Column(db.DateTime, nullable=False)
+
+    audio_text = db.Column(db.Text, nullable=True)
     
     # New fields to match SummaryModel
     date_published = db.Column(db.String(100), nullable=True)
@@ -87,12 +89,40 @@ class Summary(db.Model):
     
     # Add this line to existing model
     email_ids = db.Column(db.JSON)  # Store array of email IDs used in summary
-    
+    def __str__(self):
+        """Convert Summary object to string representation"""
+        text = f"Summary from {self.from_date.strftime('%B %d, %Y')} to {self.to_date.strftime('%B %d, %Y')}\n\n"
+        
+        if self.key_points:
+            text += "Key Points:\n"
+            for point in self.key_points:
+                text += f"  - {point['text']}\n"
+            text += "\n"
+        
+        if self.sections:
+            text += "Sections:\n"
+            for section in self.sections:
+                text += f"Section: {section['header']}\n"
+                text += f"{section['content']}\n\n"
+        
+        if self.sources:
+            text += "Sources:\n"
+            for source in self.sources:
+                text += f"  - {source['title']} ({source['publisher']}, {source['date']}): {source['url']}\n"
+            text += "\n"
+        
+        if self.newsletter_names:
+            text += "Newsletters:\n"
+            for newsletter_name in self.newsletter_names:
+                text += f"  - {newsletter_name}\n"
+        
+        return text
     def to_dict(self):
         """Convert summary to dictionary format matching SummaryModel"""
         return {
             'date_published': self.date_published,
-            'from_to_date': self.from_to_date,
+            'from_date': self.from_date,
+            'to_date': self.to_date,
             'key_points': self.key_points or [],
             'sections': self.sections or [],
             'sources': self.sources or [],
@@ -165,6 +195,7 @@ class Email(db.Model):
     user = db.relationship('User', backref=db.backref('emails', lazy=True))
 
     has_audio = db.Column(db.Boolean, default=False)
+    audio_text = db.Column(db.Text, nullable=True)  # New field for storing audio-friendly text
 
     def to_newsletter(self):
         """Convert the email record to a Newsletter object format"""
