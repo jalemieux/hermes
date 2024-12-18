@@ -189,7 +189,7 @@ def dashboard():
     return render_template('dashboard.html',
                          mailslurp_email_address=current_user.mailslurp_email_address,
                          user_email=current_user.email,
-                         summaries=[], #combined_summaries,
+                         summaries=combined_summaries,
                          email_forwarding_enabled=current_user.email_forwarding_enabled,
                          newsletters=newsletters)
 
