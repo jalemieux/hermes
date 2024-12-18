@@ -520,8 +520,7 @@ def generate_weekly_summaries():
                     db.session.refresh(new_summary)
                     
                     # Generate the summary
-                    user = User.query.get(user_id)
-                    inbox_id = user.mailslurp_inbox_id
+                    
 
                     # Set date range for weekly summary
                     start_date = datetime.now() - timedelta(days=7)
