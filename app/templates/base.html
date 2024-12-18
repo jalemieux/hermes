@@ -6,6 +6,17 @@
     <title>{% block title %}{% endblock %}</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="/static/css/style.css">
+    <style>
+        /* Ensure the footer is always at the bottom */
+        body {
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+        }
+        .content-wrapper {
+            flex: 1;
+        }
+    </style>
 </head>
 <body> 
     <nav class="border-b border-gray-200 bg-white">
@@ -73,9 +84,19 @@
         </div>
     </nav>
     
-    <div class="container mt-4">
+    <div class="container mt-4 content-wrapper">
         {% block content %}{% endblock %}
     </div>
+
+    <!-- Banner -->
+    <footer class="bg-gray-100 py-4">
+        
+        <div class="text-center text-gray-600">
+            &copy; <a href="https://smartlayer.ventures" class="inline-flex items-center">
+                <span class="font-bold text-gray-600">SmartLayer</span><span class="text-gray-600">.ventures</span>
+            </a>
+        </div>
+    </footer>
 
     <script>
         function toggleMobileMenu() {
