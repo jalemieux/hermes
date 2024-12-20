@@ -37,6 +37,9 @@ class User(UserMixin, db.Model):
     reset_token = db.Column(db.String(100), unique=True)
     reset_token_expiry = db.Column(db.DateTime)
 
+    gmail_credentials = db.Column(db.JSON)
+    selected_newsletters = db.Column(db.JSON)  # Store selected newsletter configurations
+    
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)
 
@@ -62,6 +65,18 @@ class User(UserMixin, db.Model):
         """Clear the reset token after it's been used"""
         self.reset_token = None
         self.reset_token_expiry = None
+        db.session.commit()
+
+    def update_gmail_credentials(self, credentials):
+        """Update Gmail credentials"""
+        self.gmail_credentials = {
+            'token': credentials.token,
+            'refresh_token': credentials.refresh_token,
+            'token_uri': credentials.token_uri,
+            'client_id': credentials.client_id,
+            'client_secret': credentials.client_secret,
+            'scopes': credentials.scopes
+        }
         db.session.commit()
 
 class Summary(db.Model):

@@ -4,6 +4,7 @@ from flask import current_app
 import os
 
 def create_google_oauth_flow():
+    """Create and configure Google OAuth flow"""
     flow = Flow.from_client_config(
         {
             "web": {

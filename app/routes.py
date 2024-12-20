@@ -211,25 +211,7 @@ def authorize_gmail():
     session['state'] = state
     return redirect(authorization_url)
 
-@main.route('/oauth2callback')
-@login_required
-def oauth2callback():
-    state = session['state']
-    
-    flow = create_google_oauth_flow()
-    flow.fetch_token(authorization_response=request.url)
-    
-    credentials = flow.credentials
-    
-    # Store credentials in user model
-    current_user.google_token = credentials.token
-    current_user.google_refresh_token = credentials.refresh_token
-    current_user.google_token_expiry = datetime.now() + timedelta(seconds=credentials.expiry.second)
-    
-    db.session.commit()
-    
-    flash('Gmail access authorized successfully!', 'success')
-    return redirect(url_for('main.dashboard'))
+
 
 @main.route('/generate-summary', methods=['POST'])
 @login_required
@@ -889,3 +871,70 @@ def invite():
             return redirect(url_for('main.invite'))
             
     return render_template('invite.html')
+
+@main.route('/connect/gmail')
+@login_required
+def connect_gmail():
+    """Start Gmail OAuth flow"""
+    flow = create_google_oauth_flow()
+    authorization_url, state = flow.authorization_url(
+        access_type='offline',
+        include_granted_scopes='true'
+    )
+    session['state'] = state
+    return redirect(authorization_url)
+
+@main.route('/oauth2callback')
+@login_required
+def oauth2callback():
+    """Handle Gmail OAuth callback"""
+    flow = create_google_oauth_flow()
+    flow.fetch_token(
+        authorization_response=request.url,
+        state=session['state']
+    )
+    credentials = flow.credentials
+    current_user.update_gmail_credentials(credentials)
+    
+    # After successful connection, redirect to newsletter selection
+    return redirect(url_for('main.select_newsletters'))
+
+@main.route('/select-newsletters')
+@login_required
+def select_newsletters():
+    """Show available newsletters for selection"""
+    if not current_user.gmail_credentials:
+        flash('Please connect your Gmail account first', 'error')
+        return redirect(url_for('main.dashboard'))
+    
+    # Get available newsletters
+    newsletters = get_gmail_newsletters(current_user)
+    selected = current_user.selected_newsletters or []
+    
+    return render_template(
+        'select_newsletters.html',
+        newsletters=newsletters,
+        selected=selected
+    )
+
+@main.route('/api/newsletters/update', methods=['POST'])
+@login_required
+def update_selected_newsletters():
+    """Update user's selected newsletters"""
+    data = request.get_json()
+    selected = data.get('selected', [])
+    
+    # Validate selection against daily limit
+    if len(selected) > Config.MAX_NEWSLETTERS_PER_DAY:
+        return jsonify({
+            'status': 'error',
+            'message': f'Maximum {Config.MAX_NEWSLETTERS_PER_DAY} newsletters allowed'
+        }), 400
+    
+    current_user.selected_newsletters = selected
+    db.session.commit()
+    
+    return jsonify({
+        'status': 'success',
+        'message': 'Newsletter preferences updated'
+    })
