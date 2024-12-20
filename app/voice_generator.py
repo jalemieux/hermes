@@ -68,7 +68,7 @@ class VoiceClipGenerator:
     
 
 
-    def _coalesce_audio_segments(self, audio_segments: list, pause_duration: int = 2000) -> bytes:
+    def _coalesce_audio_segments(self, audio_segments: list, pause_duration: int = 1000) -> bytes:
         """
         Combines audio segments with pauses between them.
         Returns the combined audio as bytes.
