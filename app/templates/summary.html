@@ -27,7 +27,7 @@
                             <path d="M19.07 4.93a10 10 0 0 1 0 14.14"></path>
                         </svg>
                     </a>
-                    {% endif %}
+                {% endif %}
                     <a href="{{ url_for('main.summary_emails', summary_id=summary.id) }}" 
                        class="rounded-lg p-2 font-medium transition-colors bg-gray-100 text-gray-900 hover:bg-gray-200"
                        title="View Source Emails">
@@ -42,23 +42,23 @@
                         <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                             <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
                         </svg>
-                    </a>
+                    </a>        
+                </div>
             </div>
-        </div>
 
-        <!-- Audio Generation -->
-        {% if not summary.has_audio %}
-        <div class="mb-8">
-            <button id="generateAudioBtn" 
-                    onclick="handleGenerateAudio(event)"
-                    class="inline-flex items-center justify-center rounded-lg px-4 py-2 font-medium transition-colors bg-gray-900 text-white hover:bg-gray-800 w-48">
-                <svg id="audioSpinner" class="hidden animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
-                <span id="generateAudioBtnText">Generate Audio</span>
-            </button>
-        </div>
+            <!-- Audio Generation -->
+            {% if not summary.has_audio %}
+            <div class="mb-8">
+                <button id="generateAudioBtn" 
+                        onclick="handleGenerateAudio(event)"
+                        class="inline-flex items-center justify-center rounded-lg px-4 py-2 font-medium transition-colors bg-gray-900 text-white hover:bg-gray-800 w-48">
+                    <svg id="audioSpinner" class="hidden animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    <span id="generateAudioBtnText">Generate Audio</span>
+                </button>
+            </div>
 
         <script>
         function handleGenerateAudio(event) {

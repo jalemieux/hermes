@@ -365,6 +365,7 @@ def summary_emails(summary_id):
     }
     
     return render_template('summary_emails.html', summary=summary_json, emails=emails)
+
 @main.route('/generate-audio/email/<int:email_id>', methods=['POST'])
 @login_required
 def generate_audio_email(email_id):
@@ -401,22 +402,19 @@ def generate_audio_email(email_id):
 @login_required
 def generate_audio(summary_id):
     try:
-        # Create the /var/data directory if it doesn't exist
-        os.makedirs('/var/data/audio', exist_ok=True)
+        # Check if summary already has audio
+        summary = Summary.query.get(summary_id)
+        if not summary:
+            return jsonify({'status': 'error', 'message': 'Summary not found' }), 404
+            
+        if summary.has_audio:
+            return jsonify({'status': 'success', 'message': 'Audio already exists'}), 200
         
+               
         voice_generator = VoiceClipGenerator()
-        audio_filename = f'summary_{summary_id}_{int(datetime.now().timestamp())}.mp3'
-        audio_path = os.path.join(current_app.config['AUDIO_DIR'], audio_filename)
-        
-        success = voice_generator.generate_voice_clip(summary_id, audio_path)
+        success = voice_generator.summary_to_audio(summary)
         
         if success:
-            # Update the summary with the audio filename
-            summary = Summary.query.get(summary_id)
-            summary.audio_filename = audio_filename
-            summary.has_audio = True
-            db.session.commit()
-            
             return jsonify({
                 'status': 'success',
                 'message': 'Audio generated successfully'

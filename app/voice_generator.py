@@ -1,5 +1,4 @@
 from datetime import datetime
-import logging
 import os
 from pathlib import Path
 import uuid
@@ -11,7 +10,7 @@ from app.models import Email, Summary, db, AudioFile
 from pydub import AudioSegment
 import io
 import tempfile
-
+from flask import current_app
 class VoiceClipGenerator:
     def __init__(self):
         self.client = ElevenLabs(
@@ -80,7 +79,7 @@ class VoiceClipGenerator:
         final_audio = AudioSegment.empty()
         
         for i, segment in enumerate(audio_segments):
-            logging.info(f"Processing segment {segment}")
+            current_app.logger.info(f"Processing segment {segment}")
             audio_segment = AudioSegment.from_mp3(segment)
             
             # Add the audio segment
@@ -130,7 +129,7 @@ class VoiceClipGenerator:
         # Generate segments based on content type
         if content_type == 'summary':
             segments = self._generate_summary_list(content)
-        else:  # email
+        else:  # email, or other text
             segments = self._generate_email_segments(content)
             
         audio_segments = []
@@ -159,11 +158,11 @@ class VoiceClipGenerator:
                     if os.path.exists(tmp_file):
                         os.remove(tmp_file)
                 except OSError as e:
-                    logging.warning(f"Error removing temporary file {tmp_file}: {e}")
+                    current_app.logger.warning(f"Error removing temporary file {tmp_file}: {e}")
             try:
                 os.rmdir(temp_dir)
             except OSError as e:
-                logging.warning(f"Error removing temporary directory {temp_dir}: {e}")
+                current_app.logger.warning(f"Error removing temporary directory {temp_dir}: {e}")
 
     def generate_voice_clip(self, summary_id=None, email_id=None):
         """Generate a voice clip for a given summary or email."""
@@ -171,16 +170,16 @@ class VoiceClipGenerator:
             content = Summary.query.get(summary_id)
             content_type = 'summary'
             if not content:
-                logging.error(f"Summary {summary_id} not found")
+                current_app.logger.error(f"Summary {summary_id} not found")
                 return False
         elif email_id:
             content = Email.query.get(email_id)
             content_type = 'email'
             if not content:
-                logging.error(f"Email {email_id} not found")
+                current_app.logger.error(f"Email {email_id} not found")
                 return False
         else:
-            logging.error("Neither summary_id nor email_id provided")
+            current_app.logger.error("Neither summary_id nor email_id provided")
             return False
 
         try:
@@ -210,11 +209,11 @@ class VoiceClipGenerator:
                 content.has_audio = True
             
             db.session.commit()
-            logging.info(f"Successfully generated voice clip for {'summary' if summary_id else 'email'} {summary_id or email_id}")
+            current_app.logger.info(f"Successfully generated voice clip for {'summary' if summary_id else 'email'} {summary_id or email_id}")
             return True
             
         except Exception as e:
-            logging.error(f"Error generating voice clip: {str(e)}")
+            current_app.logger.error(f"Error generating voice clip: {str(e)}")
             db.session.rollback()
             return False 
         
@@ -230,32 +229,32 @@ class VoiceClipGenerator:
 
 
     def email_to_audio(self, email) -> bool:
-        logging.info(f"Processing email {email.id} from {email.name}")
+        current_app.logger.info(f"Processing email {email.id} from {email.name}")
             
         # Convert email content to audio-friendly format
-        logging.info(f"Converting email {email.id} content to audio format")
+        current_app.logger.info(f"Converting email {email.id} content to audio format")
         summary_generator = SummaryGenerator()
         audio_text = summary_generator.convert_to_audio_format(email.to_md())
         
         # Save audio text to email object
         email.audio_text = audio_text
         db.session.commit()
-        logging.info(f"Saved audio text for email {email.id}")
+        current_app.logger.info(f"Saved audio text for email {email.id}")
 
         # Generate unique filename
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         audio_filename = f"newsletter_{email.id}_{timestamp}.mp3"
         #audio_path = os.path.join(app.config['AUDIO_DIR'], audio_filename)
-        logging.info(f"Generated audio filename: {audio_filename}")
+        current_app.logger.info(f"Generated audio filename: {audio_filename}")
         
         # Generate audio file
-        logging.info(f"Generating audio file for email {email.id}")
+        current_app.logger.info(f"Generating audio file for email {email.id}")
         voice_data = self.openai_text_to_speech( audio_text, content_type="email")
         
         
         if voice_data:
             # Update email record
-            logging.info(f"Successfully generated audio for email {email.id}, updating database record")
+            current_app.logger.info(f"Successfully generated audio for email {email.id}, updating database record")
             email.has_audio = True
             # Create or update AudioFile record
             audio_file = AudioFile.query.filter_by(email_id=email.id).first()
@@ -270,8 +269,63 @@ class VoiceClipGenerator:
                 )
                 db.session.add(audio_file)
             db.session.commit()
-            logging.info(f"Database record updated for email {email.id}")
+            current_app.logger.info(f"Database record updated for email {email.id}")
             return True
         else:
-            logging.info(f"Failed to generate audio for email {email.id}")
+            current_app.logger.info(f"Failed to generate audio for email {email.id}")
+            return False
+
+    def summary_to_audio(self, summary) -> bool:
+        """
+        Converts a summary to audio format and saves it to the database.
+        
+        Args:
+            summary: Summary object to convert to audio
+            
+        Returns:
+            bool: True if successful, False otherwise
+        """
+        current_app.logger.info(f"Processing summary {summary.id}")
+        summary_text = summary.to_text()
+        # Convert summary content to audio-friendly format
+        current_app.logger.info(f"Converting summary {summary.id} content to audio format")
+        summary_generator = SummaryGenerator()
+        audio_text = summary_generator.convert_to_audio_format(summary_text)
+        
+        # Save audio text to summary object
+        summary.content = audio_text
+        db.session.commit()
+        current_app.logger.info(f"Saved audio text for summary {summary.id}")
+
+        # Generate unique filename
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        audio_filename = f"summary_{summary.id}_{timestamp}.mp3"
+        
+        
+        # Generate audio file
+        current_app.logger.info(f"Generating audio file for summary {summary.id}")
+        voice_data = self.openai_text_to_speech(audio_text, content_type="read text")
+        
+        if voice_data:
+            # Update summary record
+            current_app.logger.info(f"Successfully generated audio for summary {summary.id}, updating database record")
+            summary.has_audio = True
+            
+            # Create or update AudioFile record
+            audio_file = AudioFile.query.filter_by(summary_id=summary.id).first()
+            if audio_file:
+                audio_file.filename = audio_filename
+                audio_file.data = voice_data
+            else:
+                audio_file = AudioFile(
+                    filename=audio_filename,
+                    data=voice_data,
+                    summary_id=summary.id
+                )
+                db.session.add(audio_file)
+            db.session.commit()
+            current_app.logger.info(f"Database record updated for summary {summary.id}")
+            return True
+        else:
+            current_app.logger.info(f"Failed to generate audio for summary {summary.id}")
             return False

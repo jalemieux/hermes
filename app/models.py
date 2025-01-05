@@ -104,6 +104,25 @@ class Summary(db.Model):
     
     # Add this line to existing model
     email_ids = db.Column(db.JSON)  # Store array of email IDs used in summary
+
+    def to_text(self) -> str:
+        """Get the content of the summary"""
+        text = f"Summary from {self.from_date.strftime('%B %d, %Y')} to {self.to_date.strftime('%B %d, %Y')}\n\n"
+        
+        if self.key_points:
+            text += "Key Points:\n"
+            for point in self.key_points:
+                text += f"  - {point['text']}\n"
+            text += "\n"
+        
+        if self.sections:
+            text += "Sections:\n"
+            for section in self.sections:
+                text += f"Section: {section['header']}\n"
+                text += f"{section['content']}\n\n"
+
+        return text
+    
     def __str__(self):
         """Convert Summary object to string representation"""
         text = f"Summary from {self.from_date.strftime('%B %d, %Y')} to {self.to_date.strftime('%B %d, %Y')}\n\n"
