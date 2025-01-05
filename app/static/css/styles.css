@@ -74,4 +74,25 @@
 .newsletter-controls {
     display: flex;
     gap: 0.5rem;
+}
+
+/* Add to existing styles */
+.unread-item {
+    position: relative;
+}
+
+.unread-item::before {
+    content: '';
+    position: absolute;
+    left: -1rem;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 0.5rem;
+    height: 0.5rem;
+    border-radius: 50%;
+    background-color: #3b82f6;
+}
+
+.unread-item.newsletter::before {
+    background-color: #8b5cf6;
 } 

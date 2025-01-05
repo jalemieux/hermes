@@ -361,3 +361,16 @@ class Invitation(db.Model):
         self.invited_by_id = invited_by_id
         self.token = secrets.token_urlsafe(32)
         self.expires_at = datetime.utcnow() + timedelta(days=7)  # Invitation expires in 7 days
+
+class ReadStatus(db.Model):
+    __tablename__ = 'read_status'
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    item_id = db.Column(db.Integer, nullable=False)
+    item_type = db.Column(db.String(20), nullable=False)  # 'summary', 'email', or 'newsletter'
+    read_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    user = db.relationship('User', backref=db.backref('read_statuses', lazy=True))
+    __table_args__ = (
+        db.UniqueConstraint('user_id', 'item_id', 'item_type', name='unique_read_status'),
+    )

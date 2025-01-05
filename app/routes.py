@@ -3,7 +3,7 @@ from flask import Blueprint, render_template, redirect, url_for, request, flash,
 from flask_login import login_user, logout_user, login_required, current_user
 from openai import OpenAI
 from app.mailbox_accessor import MailboxAccessor
-from app.models import Newsletter, db, User, Summary, Email, AudioFile, Invitation
+from app.models import Newsletter, db, User, Summary, Email, AudioFile, Invitation, ReadStatus
 #from app.utils.oauth import create_google_oauth_flow, credentials_from_user
 from app.oauth import create_google_oauth_flow
 from datetime import datetime, timedelta
@@ -147,7 +147,11 @@ def dashboard():
                                 .order_by(Summary.to_date.desc()) \
                                 .paginate(page=page, per_page=per_page, error_out=False)
 
-    # Convert db summaries to the same format as mock summaries
+    # Get read status for all items
+    read_statuses = ReadStatus.query.filter_by(user_id=current_user.id).all()
+    read_items = {(rs.item_type, rs.item_id) for rs in read_statuses}
+
+    # Modify the summary formatting to include read status
     db_summaries_formatted = [
         {
             'title': summary.title,
@@ -156,7 +160,8 @@ def dashboard():
             'read_url': url_for('main.read_summary', summary_id=summary.id),
             'type': 'summary',
             'has_audio': summary.has_audio,
-            'id': summary.id
+            'id': summary.id,
+            'is_read': ('summary', summary.id) in read_items
         }
         for summary in db_summaries.items
     ]
@@ -166,7 +171,7 @@ def dashboard():
                         .order_by(Email.created_at.desc()) \
                         .paginate(page=page, per_page=per_page, error_out=False)
 
-    # Convert db emails to the same format as mock emails
+    # Modify the email formatting to include read status
     emails_formatted = [
         {
             'title': email.name,
@@ -175,7 +180,8 @@ def dashboard():
             'read_url': url_for('main.read_email', email_id=email.id),
             'has_audio': email.has_audio,
             'type': 'email',
-            'id': email.id
+            'id': email.id,
+            'is_read': ('email', email.id) in read_items
         }
         for email in emails.items
     ]
@@ -312,6 +318,21 @@ def read_summary(summary_id):
             for source in summary.sources
         ] if summary.sources else []
     }
+    # Mark the summary as read
+    read_status = ReadStatus.query.filter_by(
+        user_id=current_user.id,
+        item_id=summary.id,
+        item_type='summary'
+    ).first()
+    
+    if not read_status:
+        read_status = ReadStatus(
+            user_id=current_user.id,
+            item_id=summary.id,
+            item_type='summary'
+        )
+        db.session.add(read_status)
+        db.session.commit()
     
     return render_template('summary.html', summary=summary_json)
 
@@ -676,6 +697,21 @@ def read_email(email_id):
     if email.user_id != current_user.id:
         flash('Unauthorized access', 'error')
         return redirect(url_for('main.dashboard'))
+    # Mark the email as read
+    read_status = ReadStatus.query.filter_by(
+        user_id=current_user.id,
+        item_id=email_id,
+        item_type='email'
+    ).first()
+    
+    if not read_status:
+        read_status = ReadStatus(
+            user_id=current_user.id,
+            item_id=email_id,
+            item_type='email'
+        )
+        db.session.add(read_status)
+        db.session.commit()
     
     return render_template('email.html', email=email)
 
@@ -936,3 +972,36 @@ def update_selected_newsletters():
         'status': 'success',
         'message': 'Newsletter preferences updated'
     })
+
+@main.route('/api/mark-read', methods=['POST'])
+@login_required
+def mark_as_read():
+    try:
+        data = request.get_json()
+        item_id = data.get('item_id')
+        item_type = data.get('item_type')
+
+        if not item_id or not item_type:
+            return jsonify({'error': 'Missing required parameters'}), 400
+
+        # Check if already marked as read
+        existing = ReadStatus.query.filter_by(
+            user_id=current_user.id,
+            item_id=item_id,
+            item_type=item_type
+        ).first()
+
+        if not existing:
+            read_status = ReadStatus(
+                user_id=current_user.id,
+                item_id=item_id,
+                item_type=item_type
+            )
+            db.session.add(read_status)
+            db.session.commit()
+
+        return jsonify({'status': 'success'}), 200
+
+    except Exception as e:
+        current_app.logger.error(f"Error marking item as read: {str(e)}")
+        return jsonify({'error': 'Internal server error'}), 500
