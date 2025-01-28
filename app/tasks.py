@@ -125,6 +125,49 @@ def generate_email_audio():
         for email in pending_emails:
             voice_generator.email_to_audio(email)
 
+def collect_summarize_and_voice_emails():
+    """
+    Collect and summarize emails for each user.
+    This function:
+    1. Gets all users with configured mailboxes.
+    2. Collects and summarizes emails for each user.
+    3. Updates task execution status and records any failures.
+    """
+    app = create_app()
+    
+    with app.app_context():
+        failures = 0
+
+        task_execution = TaskExecution.query.filter_by(task_name='collect_and_summarize_emails').first()
+        if not task_execution:
+            task_execution = TaskExecution(task_name='collect_and_summarize_emails', status='started', last_success=datetime.now() - timedelta(days=3))
+            db.session.add(task_execution)
+            db.session.commit()
+            db.session.refresh(task_execution)
+       
+        users = User.query.filter(User.mailslurp_inbox_id.isnot(None)).all()
+        
+        task_execution.status = 'started'
+        db.session.commit()
+        db.session.refresh(task_execution)
+
+        for user in users:
+            try:
+                summary_generator = SummaryGenerator()
+                new_summary = summary_generator.collect_and_summarize_emails(user.id, start_date=datetime.now() - timedelta(days=1))
+                db.session.commit()
+                logger.info(f"Successfully collected and summarized emails for user {user.id}")
+                voice_generator = VoiceClipGenerator()
+                success = voice_generator.summary_to_audio(new_summary)
+                logger.info(f"Successfully generated audio for summary {new_summary.id}")
+            except Exception as e:
+                logger.error(f"Error collecting and summarizing and voicing emails for user {user.id}: {str(e)}")
+                failures += 1
+                continue
+            
+        # Record successful execution
+        TaskExecution.record_execution('collect_and_summarize_emails', 'success' if failures == 0 else 'failed')
+
 
 def process_inbox_emails():
     """
@@ -132,11 +175,11 @@ def process_inbox_emails():
     This function is meant to be called periodically by a scheduler.
     
     The function:
-    1. Gets all users with configured mailboxes
-    2. For each user, fetches new emails from their inbox
-    3. Processes each email to extract newsletter content
-    4. Stores the processed content in the database
-    5. Updates task execution status and records any failures
+    1. Gets all users with configured mailboxes.
+    2. Fetches new emails from each user's inbox.
+    3. Processes each email to extract newsletter content.
+    4. Stores the processed content in the database.
+    5. Updates task execution status and records any failures.
     """
     app = create_app()
     
@@ -667,8 +710,11 @@ def generate_summary_audio():
                     return False
                     
                     
+
+
 if __name__ == "__main__":
     import sys
+
 
     
     if len(sys.argv) < 2:
@@ -685,6 +731,7 @@ if __name__ == "__main__":
         print("- generate_summary_audio")
         print("- print_last_email")
         print("- list_users")
+        print("- collect_summarize_and_voice_emails")
         sys.exit(1)
     
     task_name = sys.argv[1]
@@ -716,6 +763,8 @@ if __name__ == "__main__":
         print_last_email(user_id)
     elif task_name == "list_users":
         list_users()
+    elif task_name == "collect_summarize_and_voice_emails":
+        collect_summarize_and_voice_emails()
     else:
         print(f"Unknown task: {task_name}")
         print("Available tasks:")
@@ -730,4 +779,5 @@ if __name__ == "__main__":
         print("- list_users")
         print("- generate_weekly_summaries")
         print("- generate_summary_audio")
+        print("- collect_summarize_and_voice_emails")
         sys.exit(1)

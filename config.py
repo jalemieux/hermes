@@ -11,7 +11,9 @@ class Config:
     # PostgreSQL database URL
     SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL') or \
     'postgresql://myuser:mypassword@localhost:5432/hermes'
-
+        #'postgresql://wordsnapdb1_user:gR2GogwlUciUHCFbWL0q1mXq6fcxKeP2@dpg-crtjmfbtq21c73ft4tug-a.oregon-postgres.render.com/hermes'
+        ##
+    #
 
     OPENAI_API_KEY = os.environ.get('OPENAI_API_KEY')
     MAILSLURP_API_KEY = os.environ.get('MAILSLURP_API_KEY')
@@ -36,3 +38,4 @@ class Config:
     SERVER_NAME = os.environ.get('SERVER_NAME', 'localhost:5000')
     AUDIO_DIR = os.environ.get('AUDIO_DIR', '/Users/jac/Dev/src/hermes/app/static/audio')
     MAX_NEWSLETTERS_PER_DAY = 5  # Adjust as needed
+

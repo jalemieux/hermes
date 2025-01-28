@@ -64,7 +64,7 @@ You are a content editor AI. Your task is to combine the content of a list of ne
 	•	Title: Provide a title that captures the main topic of the summarized content.
 	•	Date Range: Specify the date range the summary covers.
 	•	Key Points: Create a bullet-point list of the most significant details, ensuring no critical information is lost.
-	•	Thematic Subsections: Summarize specific topics under clear headings (e.g., ‘AI Developments’, ‘Hardware and Devices’) in paragraph format, covering all relevant aspects of the input text.
+	•	Thematic Subsections: Summarize specific topics under clear headings (e.g., 'AI Developments', 'Hardware and Devices') in paragraph format, covering all relevant aspects of the input text.
 	2.	Comprehensiveness:
 	•	Capture all the content and details from the input text. If summarization is required, ensure that no essential information is lost.
 	•	Highlight any ambiguities or unclear sections from the input, offering possible interpretations or noting them explicitly.
@@ -138,11 +138,92 @@ class SummaryGenerator:
         return start_date, end_date
 
         
-       
+    def collect_and_summarize_emails(self, user_id, start_date):
+        """
+        Collect and summarize emails from a given inbox starting from a specified date.
+        Uses multiple summarization functions to generate different summaries.
+        
+        Parameters:
+        - user_id: The ID of the user to collect emails from.
+        - start_date: The start date for fetching emails.
+        
+        Returns:
+        - list[Summary]: List of created summary objects with the generated summary details.
+        """
+        logging.info(f"Starting to collect and summarize emails for user_id: {user_id} from start_date: {start_date}")
+        
+        mailbox = MailboxAccessor()
+        
+        # Calculate days between dates for fetching emails
+        days_diff = (datetime.now() - start_date).days + 1
+        logging.info(f"Fetching emails from last {days_diff} days")
+        mailbox_id = User.query.get(user_id).mailslurp_inbox_id
+        emails = mailbox.get_emails_from_last_n_days(mailbox_id, days_diff)
+        logging.info(f"Found {len(emails)} emails to process")
+        
+        if len(emails) == 0:
+            logging.info(f"No emails found")
+            raise Exception("No emails found")
+        
+        email_ids = self.process_emails(emails, user_id)
+        logging.info(f"Processed content: {email_ids}")
+        
+        # List of summarization functions to use
+        summarization_functions = [
+            ('summarize_content', self.summarize_content),
+        ]
+        
+        summaries = []
+        for func_name, summarize_func in summarization_functions:
+            try:
+                logging.info(f"Generating summary using {func_name}")
+                summary, sources, newsletter_names = summarize_func(email_ids)
+                logging.info(f"Generated summary using {func_name}")
+                
+                new_summary = Summary(
+                    user_id=user_id,
+                    title=summary.title,
+                    from_date=start_date,
+                    to_date=datetime.now(),
+                    has_audio=False,
+                    date_published=datetime.now(),
+                    status='completed',
+                    key_points=[{"text": point.text} for point in summary.key_points],
+                    sections=[{"header": section.header, "content": section.content} for section in summary.sections],
+                    sources=[{"url": source.url, "date": source.date, "title": source.title, "publisher": source.publisher} for source in sources],
+                    newsletter_names=list(newsletter_names),
+                    email_ids=email_ids,
+                    summarization_type=func_name  # Add type of summarization used
+                )
+                
+                # Add the new summary to the database
+                db.session.add(new_summary)
+                db.session.commit()
+                logging.info(f"Successfully created summary for user_id: {user_id} using {func_name}")
+                
+                summaries.append(new_summary)
+            except Exception as e:
+                logging.error(f"Error generating summary using {func_name}: {str(e)}")
+                continue
+        
+        if not summaries:
+            raise Exception("Failed to generate any summaries")
+        
+        return summaries
 
     def process_inbox_emails(self, user_id, start_date=None):
         """
         Process emails from a user's inbox to extract and summarize newsletter content.
+        
+        Parameters:
+        - user_id: The ID of the user whose inbox emails are being processed.
+        - start_date: The start date for fetching emails (optional).
+        
+        Raises:
+        - ValueError: If the user is not found or has no mailbox configured.
+        
+        Logs:
+        - Information about the processing steps and any errors encountered.
         """
         logging.info(f"Starting to process inbox emails for user_id: {user_id}")
         
@@ -311,6 +392,9 @@ class SummaryGenerator:
         return emails
 
 
+
+    
+
     def process_emails(self, emails, user_id):
         system_prompt = """
         You are a content editor AI. Your task is to process the text of a newsletter and remove all content related to 
@@ -389,6 +473,35 @@ class SummaryGenerator:
             email_ids.append(id)
         return email_ids
     
+    def summarize_content(self, email_ids) -> tuple[SummaryModel, list[SourceModel], list[str]]:
+
+        # get all the source content   
+        content = []
+        sources = {}
+        newsletter_names = set()
+        emails = Email.query.filter(Email.id.in_(email_ids)).all()
+        for email in emails:
+            logging.info(f"email: {email.name}")
+            content.append(f"newsletter: {email.name}\n{email.to_newsletter()}")
+            newsletter_names.add(email.name)
+            for source in email.sources:
+                if source.url not in sources:
+                    sources[source.url] = source
+
+        parsed = self.openai_client.beta.chat.completions.parse(
+            model="gpt-4o",
+            messages=[
+                {"role": "system", "content": synthesis_prompt},
+                {"role": "user", "content": str(content)}
+            ],
+            response_format=SummaryModel
+        )
+        logging.info(f"parsed summary")
+        summary = parsed.choices[0].message.parsed
+        sources = list(sources.values())
+        return summary, sources, newsletter_names
+    
+    
     def synthesis(self, email_ids) -> tuple[SummaryModel, list[SourceModel], list[str]]:
 
         # get all the source content   
@@ -419,8 +532,21 @@ class SummaryGenerator:
     
 
     
-    # TODO L: needs to be tested
     def generate_summary(self, user_id, new_summary, start_date = None, end_date = None) -> Summary:
+        """
+        Generates a summary for a given user within a specified date range.
+        
+        This function fetches emails, processes them, synthesizes a summary, and updates the summary record.
+        
+        Parameters:
+        - user_id: The ID of the user for whom the summary is being generated.
+        - new_summary: The Summary object to be updated with the generated summary details.
+        - start_date: The start date for fetching emails (optional).
+        - end_date: The end date for fetching emails (optional).
+        
+        Returns:
+        - Summary: The updated Summary object with the generated summary details.
+        """
         user = User.query.get(user_id)
         inbox_id = user.mailslurp_inbox_id
 
@@ -495,7 +621,6 @@ class SummaryGenerator:
         2. Make the text flow naturally when read aloud
         3. Convert any visual elements (bullets, formatting) into spoken transitions
         4. Add appropriate pauses and transitions between sections
-        5. Spell out any abbreviations or technical terms that might be unclear when spoken
         """
         
         response = self.openai_client.chat.completions.create(
