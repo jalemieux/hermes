@@ -175,36 +175,32 @@ class SummaryGenerator:
         
         summaries = []
         for func_name, summarize_func in summarization_functions:
-            try:
-                logging.info(f"Generating summary using {func_name}")
-                summary, sources, newsletter_names = summarize_func(email_ids)
-                logging.info(f"Generated summary using {func_name}")
-                
-                new_summary = Summary(
-                    user_id=user_id,
-                    title=summary.title,
-                    from_date=start_date,
-                    to_date=datetime.now(),
-                    has_audio=False,
-                    date_published=datetime.now(),
-                    status='completed',
-                    key_points=[{"text": point.text} for point in summary.key_points],
-                    sections=[{"header": section.header, "content": section.content} for section in summary.sections],
-                    sources=[{"url": source.url, "date": source.date, "title": source.title, "publisher": source.publisher} for source in sources],
-                    newsletter_names=list(newsletter_names),
-                    email_ids=email_ids,
-                    summarization_type=func_name  # Add type of summarization used
-                )
-                
-                # Add the new summary to the database
-                db.session.add(new_summary)
-                db.session.commit()
-                logging.info(f"Successfully created summary for user_id: {user_id} using {func_name}")
-                
-                summaries.append(new_summary)
-            except Exception as e:
-                logging.error(f"Error generating summary using {func_name}: {str(e)}")
-                continue
+            logging.info(f"Generating summary using {func_name}")
+            summary, sources, newsletter_names = summarize_func(email_ids)
+            logging.info(f"Generated summary using {func_name}")
+            
+            new_summary = Summary(
+                user_id=user_id,
+                title=summary.title,
+                from_date=start_date,
+                to_date=datetime.now(),
+                has_audio=False,
+                date_published=datetime.now(),
+                status='completed',
+                key_points=[{"text": point.text} for point in summary.key_points],
+                sections=[{"header": section.header, "content": section.content} for section in summary.sections],
+                sources=[{"url": source.url, "date": source.date, "title": source.title, "publisher": source.publisher} for source in sources],
+                newsletter_names=list(newsletter_names),
+                email_ids=email_ids,
+                summarization_type=func_name  # Add type of summarization used
+            )
+            
+            # Add the new summary to the database
+            db.session.add(new_summary)
+            db.session.commit()
+            logging.info(f"Successfully created summary for user_id: {user_id} using {func_name}")
+            
+            summaries.append(new_summary)
         
         if not summaries:
             raise Exception("Failed to generate any summaries")

@@ -1,4 +1,5 @@
 from datetime import datetime, timedelta
+from email.mime.text import MIMEText
 import json
 import logging
 
@@ -8,7 +9,7 @@ from app.mailbox_accessor import MailboxAccessor
 from app.models import AudioFile, News, Source, Topic, User, Summary, db, TaskExecution, Newsletter, Email
 from app.summary_generator import SummaryGenerator, convert_summary_to_text
 from app.email_sender import EmailSender
-from flask import url_for
+from flask import render_template, url_for
 from app.voice_generator import VoiceClipGenerator
 from app.models import Email
 import os
@@ -152,18 +153,27 @@ def collect_summarize_and_voice_emails():
         db.session.refresh(task_execution)
 
         for user in users:
-            try:
-                summary_generator = SummaryGenerator()
-                new_summary = summary_generator.collect_and_summarize_emails(user.id, start_date=datetime.now() - timedelta(days=1))
-                db.session.commit()
-                logger.info(f"Successfully collected and summarized emails for user {user.id}")
-                voice_generator = VoiceClipGenerator()
-                success = voice_generator.summary_to_audio(new_summary)
-                logger.info(f"Successfully generated audio for summary {new_summary.id}")
-            except Exception as e:
-                logger.error(f"Error collecting and summarizing and voicing emails for user {user.id}: {str(e)}")
-                failures += 1
-                continue
+            summary_generator = SummaryGenerator()
+            new_summary = summary_generator.collect_and_summarize_emails(user.id, start_date=datetime.now() - timedelta(days=1))
+            db.session.commit()
+            logger.info(f"Successfully collected and summarized emails for user {user.id}")
+            voice_generator = VoiceClipGenerator()
+            success = voice_generator.summary_to_audio(new_summary)
+            logger.info(f"Successfully generated audio for summary {new_summary.id}")
+            email_sender = EmailSender()
+            email_body = f"""
+            Hello,
+
+            Your new summary is ready. You can view it by clicking the link below:
+
+            {url_for('main.view_summary', summary_id=new_summary.id, _external=True)}
+
+            Best regards,
+            Hermes Team
+            """
+            email_sender.send_email(user.email, "Your New Summary is Ready", email_body)
+            logger.info(f"Sent email with link to new summary {new_summary.id} to user {user.email}")
+
             
         # Record successful execution
         TaskExecution.record_execution('collect_and_summarize_emails', 'success' if failures == 0 else 'failed')
@@ -765,6 +775,7 @@ if __name__ == "__main__":
         list_users()
     elif task_name == "collect_summarize_and_voice_emails":
         collect_summarize_and_voice_emails()
+
     else:
         print(f"Unknown task: {task_name}")
         print("Available tasks:")
