@@ -169,8 +169,7 @@ def collect_summarize_and_voice_emails():
             Hello,
 
             Your new summary is ready. You can view it by clicking the link below:
-
-            {url_for('main.view_summary', summary_id=summary.id, _external=True)}
+            {url_for('main.read_summary', summary_id=summary.id, _external=True)}
 
             Best regards,
             Hermes Team

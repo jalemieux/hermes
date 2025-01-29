@@ -16,10 +16,10 @@ class MailboxAccessor:
         self.api_client = mailslurp_client.ApiClient(configuration)
         #self.inbox_id = inbox_id
 
-    def get_emails_from_last_n_days(self, inbox_id, n):
+    def get_emails_from_last_n_days(self, inbox_id, n) :
         since_date = datetime.now() - timedelta(days=n)
         since_date_iso = since_date.isoformat() + 'Z'
-
+        full_emails = []
         with self.api_client as api_client:
             inbox_controller = mailslurp_client.InboxControllerApi(api_client)
             email_controller = mailslurp_client.EmailControllerApi(api_client)
@@ -31,13 +31,13 @@ class MailboxAccessor:
             )
 
             # Fetch full email content for each email
-            full_emails = []
+            
             for email_overview in emails_overview.content:
                 #logging.debug(f"Fetching full email content for email {email_overview.id}")
                 full_email = email_controller.get_email(email_overview.id)
                 full_emails.append(full_email)
                 
-            return full_emails 
+        return full_emails 
     
     def create_forwarder(self, inbox_id, forward_to_email):
         from mailslurp_client.models.create_inbox_forwarder_options import CreateInboxForwarderOptions

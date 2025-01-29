@@ -12,6 +12,8 @@ from config import Config
 class NewsletterNameModel(BaseModel):
     newsletter_name: str = Field(description="The inferred name of the newsletter")
 
+class EmailSenderModel(BaseModel):
+    sender: str = Field(description="The inferred sender of the email")
 
 class NewsModel(BaseModel):
     title: str = Field(description="The title of the news item")
@@ -162,11 +164,46 @@ class SummaryGenerator:
         logging.info(f"Found {len(emails)} emails to process")
         
         if len(emails) == 0:
-            logging.info(f"No emails found")
             return None
         
+        # Get all newsletters
+        all_newsletters = Newsletter.query.all()
+        newsletter_dict = {newsletter.name: newsletter.is_active for newsletter in all_newsletters}
+        
+        for email in emails:
+            #newsletter_name = self.newsletter_name(all_newsletters, email.sender.email_address, email.subject).newsletter_name
+            #print(email)
+            newsletter_name = self.newsletter_sender(f"{str(email.sender)} {str(email.subject)} {str(email.text_excerpt)} {str(email.recipients)}")
+            # Check if the newsletter name is in the list of all newsletters
+            if newsletter_name not in newsletter_dict:
+                # If not, create a new Newsletter object with is_active set to True
+                #print(email.sender)
+                new_newsletter = Newsletter(
+                    name=newsletter_name,
+                    is_active=True,
+                    user_id=user_id, 
+                    sender=email.sender.email_address,
+                    latest_date=datetime.now()
+                )
+                db.session.add(new_newsletter)
+                db.session.commit()
+                logging.info(f"Created new active newsletter: {newsletter_name}")
+                newsletter_dict[newsletter_name] = True
+            else:
+                if not newsletter_dict[newsletter_name]:
+                    # If the newsletter is inactive, remove the email from the list
+                    logging.info(f"Skipping email from inactive newsletter: {newsletter_name}")
+                    emails.remove(email)
+        
+        logging.info(f"Filtered emails to {len(emails)} active newsletter emails")
+        if len(emails) == 0:
+            return None
+        
+
         email_ids = self.process_emails(emails, user_id)
         logging.info(f"Processed content: {email_ids}")
+        if len(email_ids) == 0:
+            return None
         
         # List of summarization functions to use
         summarization_functions = [
@@ -192,7 +229,6 @@ class SummaryGenerator:
                 sources=[{"url": source.url, "date": source.date, "title": source.title, "publisher": source.publisher} for source in sources],
                 newsletter_names=list(newsletter_names),
                 email_ids=email_ids,
-                summarization_type=func_name  # Add type of summarization used
             )
             
             # Add the new summary to the database
@@ -392,6 +428,21 @@ class SummaryGenerator:
     
 
     def process_emails(self, emails, user_id):
+        """
+        Processes a list of emails to extract and store relevant content in the database.
+
+        This function takes a list of email objects and a user ID, processes each email to remove 
+        non-newsworthy content, and stores the processed content in the database. It ensures that 
+        each email is uniquely identified and only processes emails that have not been previously 
+        stored.
+
+        Parameters:
+        - emails (list): A list of email objects to be processed.
+        - user_id (int): The ID of the user to whom the emails belong.
+
+        Returns:
+        - list: A list of IDs of the processed emails stored in the database.
+        """
         system_prompt = """
         You are a content editor AI. Your task is to process the text of a newsletter and remove all content related to 
         promotions, advertisements, sponsorships, sales pitches, subscription information, and administrative details. 
@@ -468,7 +519,6 @@ class SummaryGenerator:
                 logging.debug(f"existing email: {email.subject}")
             email_ids.append(id)
         return email_ids
-    
     def summarize_content(self, email_ids) -> tuple[SummaryModel, list[SourceModel], list[str]]:
 
         # get all the source content   
@@ -629,14 +679,50 @@ class SummaryGenerator:
         
         return response.choices[0].message.content
 
+    def newsletter_name(self, email) -> str:
+        return email.name
 
-    def newsletter_name(self, email):
-        prompt = "Given an email and its attributes, identify the newsletter it belongs to. Return the newsletter name."
+    def newsletter_sender(self, email_raw) -> str:
+        prompt = f"""
+        Your task is to find the initial sender of a newsletter. You will be given the raw content of an email that may have been forwarded, you will need to identify the original sender.
+        Here's an example of a forwarded email, where the original sender is `TLDR AI <dan@tldrnewsletter.com>`:
+            ```
+            'sender': {{'email_address': 'jalemieux@gmail.com',
+            'name': 'Jac Lemieux',
+            'raw_value': 'Jac Lemieux <jalemieux@gmail.com>'}},
+             'subject': "Fwd: Hugging Face's Open-R1 💻, OpenAI's Model for Government Use "
+                            '🏛️, DeepSeek: All About Apps Now 📱',
+            'team_access': True,
+            'text_excerpt': '---------- Forwarded message ---------\r\n'
+                            'From: TLDR AI <dan@tldrnewsletter.com>\r\n'
+                            'Date: Wed, Jan 29, 2',
+            ```
+        
+        """
         parsed = self.openai_client.beta.chat.completions.parse(
             model="gpt-4o",
             messages=[
                 {"role": "system", "content": prompt},
-                {"role": "user", "content": f'email: {email.subject}, sender: {email._from}, date: {email.created_at}'}
+                {"role": "user", "content": f'email: {email_raw}'}
+            ],
+            response_format=EmailSenderModel
+        )
+        return parsed.choices[0].message.parsed.sender
+    
+    def inferred_newsletter_name(self, newsletters, email_sender, email_subject):
+        prompt = f"""
+        Your task is to infer the newsletter name given an email. 
+        You will be given a list of known newsletters to help you match the email to an existing newsletter.
+        You will be given the email subject and sender. 
+        If you can't match to an existing newsletter name, return a new name you infer from the email.
+         
+         Newsletters names: {", ".join([newsletter.name for newsletter in newsletters])}
+        """
+        parsed = self.openai_client.beta.chat.completions.parse(
+            model="gpt-4o",
+            messages=[
+                {"role": "system", "content": prompt},
+                {"role": "user", "content": f'email subject: {email_subject}, email sender: {email_sender}'}
             ],
             response_format=NewsletterNameModel
         )

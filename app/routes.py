@@ -3,16 +3,11 @@ from flask import Blueprint, render_template, redirect, url_for, request, flash,
 from flask_login import login_user, logout_user, login_required, current_user
 from openai import OpenAI
 from app.mailbox_accessor import MailboxAccessor
-from app.models import Newsletter, db, User, Summary, Email, AudioFile, Invitation, ReadStatus
-#from app.utils.oauth import create_google_oauth_flow, credentials_from_user
+from app.models import Newsletter, db, User, Summary, Email, AudioFile, Invitation, ReadStatus, AsyncProcessingRequest
 from app.oauth import create_google_oauth_flow
 from datetime import datetime, timedelta
-import google.oauth2.credentials
-import google_auth_oauthlib.flow
-import googleapiclient.discovery
 import re
-import mailslurp_client
-import random
+
 import logging
 import os
 from werkzeug.utils import secure_filename
@@ -188,7 +183,7 @@ def dashboard():
 
     # Combine and sort by end_date (most recent first)
     combined_summaries = sorted(
-        db_summaries_formatted + emails_formatted,
+        db_summaries_formatted, #+ emails_formatted,
         key=lambda x: datetime.strptime(x['end_date'], '%B %d, %Y'),
         reverse=True
     )
@@ -387,32 +382,68 @@ def summary_emails(summary_id):
     
     return render_template('summary_emails.html', summary=summary_json, emails=emails)
 
+# Define the generate_audio_async function at the module level
+
+def generate_audio_async(email_id):
+    with current_app.app_context():
+        email = Email.query.get(email_id)
+        if email:
+            email.audio_creation_state = 'started'
+            db.session.commit()
+            voice_generator = VoiceClipGenerator()
+            try:
+                success = voice_generator.email_to_audio(email)
+                if success:
+                    email.audio_creation_state = 'completed'
+                else:
+                    email.audio_creation_state = 'none'
+                db.session.commit()
+            except Exception as e:
+                current_app.logger.error(f"Async audio generation failed: {str(e)}")
+                email.audio_creation_state = 'none' 
+                db.session.commit()
+
 @main.route('/generate-audio/email/<int:email_id>', methods=['POST'])
 @login_required
 def generate_audio_email(email_id):
     try:
-
         # fetch email by id
         email = Email.query.get(email_id)
         if not email:
             return jsonify({'status': 'error', 'message': 'Email not found'}), 404
         
-        voice_generator = VoiceClipGenerator()
-        success = voice_generator.email_to_audio(email)
-
-        if success:
+        # Verify the email belongs to the current user
+        if email.user_id != current_user.id:
+            return jsonify({'error': 'Unauthorized'}), 403
+        
+        # Check if email already has audio
+        if email.has_audio:
             return jsonify({
                 'status': 'success',
-                'message': 'Audio generated successfully'
+                'message': 'Audio already exists'
             }), 200
-        else:
-            return jsonify({
-                'status': 'error',
-                'message': 'Failed to generate audio'
-            }), 400
-            
+        
+        if email.audio_creation_state == 'started':
+                return jsonify({
+                'status': 'success',
+                'message': 'Audio generation started'
+            }), 202
+
+        # Insert a new row into the AsyncProcessingRequest table
+        new_request = AsyncProcessingRequest(email_id=email_id, type='audio', status='pending')
+        db.session.add(new_request)
+        email.audio_creation_state = 'started'
+        db.session.commit()
+
+        return jsonify({
+            'status': 'success',
+            'message': 'Audio generation started'
+        }), 202
+                
     except Exception as e:
         current_app.logger.error(f"Audio generation failed: {str(e)}")
+        email.audio_creation_state = 'none'
+        db.session.commit()
         return jsonify({
             'status': 'error',
             'message': f'Failed to generate audio: {str(e)}'
@@ -715,43 +746,6 @@ def read_email(email_id):
     
     return render_template('email.html', email=email)
 
-@main.route('/generate-audio/email/<int:email_id>', methods=['POST'])
-@login_required
-def generate_email_audio(email_id):
-    try:
-        # Create the /var/data directory if it doesn't exist
-        os.makedirs('/var/data/audio', exist_ok=True)
-        
-        voice_generator = VoiceClipGenerator()
-        audio_filename = f'email_{email_id}_{int(datetime.now().timestamp())}.mp3'
-        audio_path = os.path.join(current_app.config['AUDIO_DIR'], audio_filename)
-        
-        success = voice_generator.generate_voice_clip(email_id, audio_path)
-        
-        if success:
-            # Update the email with the audio filename
-            email = Email.query.get(email_id)
-            email.audio_filename = audio_filename
-            email.has_audio = True
-            db.session.commit()
-            
-            return jsonify({
-                'status': 'success',
-                'message': 'Audio generated successfully'
-            }), 200
-        else:
-            return jsonify({
-                'status': 'error',
-                'message': 'Failed to generate audio'
-            }), 400
-            
-    except Exception as e:
-        current_app.logger.error(f"Audio generation failed: {str(e)}")
-        return jsonify({
-            'status': 'error',
-            'message': f'Failed to generate audio: {str(e)}'
-        }), 400
-
 @main.route('/audio/email/<int:email_id>')
 @login_required
 def listen_email(email_id):
@@ -906,21 +900,7 @@ def invite():
             
     return render_template('invite.html')
 
-@main.route('/connect/gmail')
-@login_required
-def connect_gmail():
-    """Start Gmail OAuth flow"""
-    flow = create_google_oauth_flow()
-    authorization_url, state = flow.authorization_url(
-        access_type='offline',
-        include_granted_scopes='true'
-    )
-    session['state'] = state
-    return redirect(authorization_url)
 
-@main.route('/oauth2callback')
-@login_required
-def oauth2callback():
     """Handle Gmail OAuth callback"""
     flow = create_google_oauth_flow()
     flow.fetch_token(
@@ -1004,4 +984,27 @@ def mark_as_read():
 
     except Exception as e:
         current_app.logger.error(f"Error marking item as read: {str(e)}")
+        return jsonify({'error': 'Internal server error'}), 500
+
+@main.route('/audio-status/email/<int:email_id>', methods=['GET'])
+@login_required
+def audio_status_email(email_id):
+    try:
+        # Fetch the email from the database
+        email = Email.query.get_or_404(email_id)
+
+        # Verify the email belongs to the current user
+        if email.user_id != current_user.id:
+            return jsonify({'error': 'Unauthorized'}), 403
+
+        # Check the audio creation state and has_audio flag
+        if email.audio_creation_state == 'completed' and email.has_audio:
+            return jsonify({'status': 'ready'}), 200
+        elif email.audio_creation_state == 'started':
+            return jsonify({'status': 'in_progress'}), 202
+        else:
+            return jsonify({'status': 'not_started'}), 200
+
+    except Exception as e:
+        current_app.logger.error(f"Error checking audio status: {str(e)}")
         return jsonify({'error': 'Internal server error'}), 500

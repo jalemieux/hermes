@@ -398,7 +398,7 @@
                     const data = await response.json();
                     
                     if (response.ok) {
-                        modalToast(data.message);
+                        modalToast(data.message, 1500, 300, false);
                     } else {
                         // Revert the checkbox if the API call failed
                         checkbox.checked = !checkbox.checked;

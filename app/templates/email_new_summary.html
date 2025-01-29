@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            color: #333333;
+            margin: 0;
+            padding: 0;
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .header {
+            background-color: #f8f9fa;
+            padding: 20px;
+            text-align: center;
+            border-radius: 5px;
+        }
+        .content {
+            padding: 20px;
+        }
+        .button {
+            display: inline-block;
+            padding: 12px 24px;
+            background-color: #007bff;
+            color: white;
+            text-decoration: none;
+            border-radius: 5px;
+            margin: 20px 0;
+        }
+        .button:hover {
+            background-color: #0056b3;
+        }
+        .footer {
+            text-align: center;
+            padding: 20px;
+            font-size: 12px;
+            color: #666666;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Your New Summary is Ready</h1>
+        </div>
+        
+        <div class="content">
+            <p>Hello {{ user_email }},</p>
+            
+            <p>We've prepared a new summary of your newsletters and important updates. It's ready for you to read and listen to.</p>
+
+            <div style="text-align: center;">
+                <a href="{{ url_for('main.read_summary', summary_id=summary_id, _external=True) }}" class="button">
+                    Read Your Summary
+                </a>
+            </div>
+
+            <p>In this summary, you'll find:</p>
+            <ul>
+                <li>Key points from your newsletters</li>
+                <li>Important updates and insights</li>
+                <li>Curated content from your subscriptions</li>
+            </ul>
+
+            <p>We've also generated an audio version of your summary, perfect for listening on-the-go.</p>
+        </div>
+
+        <div class="footer">
+            <p>This email was sent to {{ user_email }} by Hermes.</p>
+            <p>If you have any questions or feedback, please don't hesitate to reach out to us.</p>
+        </div>
+    </div>
+</body>
+</html> 
