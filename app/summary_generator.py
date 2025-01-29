@@ -169,11 +169,13 @@ class SummaryGenerator:
         # Get all newsletters
         all_newsletters = Newsletter.query.all()
         newsletter_dict = {newsletter.name: newsletter.is_active for newsletter in all_newsletters}
-        
+        logging.info(f"all newsletters: {newsletter_dict}")
+        emails_to_process = []
         for email in emails:
             #newsletter_name = self.newsletter_name(all_newsletters, email.sender.email_address, email.subject).newsletter_name
             #print(email)
             newsletter_name = self.newsletter_sender(f"{str(email.sender)} {str(email.subject)} {str(email.text_excerpt)} {str(email.recipients)}")
+            logging.info(f"identified email as newsletter: {newsletter_name}")
             # Check if the newsletter name is in the list of all newsletters
             if newsletter_name not in newsletter_dict:
                 # If not, create a new Newsletter object with is_active set to True
@@ -193,14 +195,16 @@ class SummaryGenerator:
                 if not newsletter_dict[newsletter_name]:
                     # If the newsletter is inactive, remove the email from the list
                     logging.info(f"Skipping email from inactive newsletter: {newsletter_name}")
-                    emails.remove(email)
+                else:
+                    emails_to_process.append(email)
+                    logging.info(f"Adding email to process: {email.subject}")
         
-        logging.info(f"Filtered emails to {len(emails)} active newsletter emails")
-        if len(emails) == 0:
+        logging.info(f"Filtered emails to {len(emails_to_process)} active newsletter emails")
+        if len(emails_to_process) == 0:
             return None
         
 
-        email_ids = self.process_emails(emails, user_id)
+        email_ids = self.process_emails(emails_to_process, user_id)
         logging.info(f"Processed content: {email_ids}")
         if len(email_ids) == 0:
             return None

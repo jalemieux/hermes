@@ -340,79 +340,58 @@
         });
     });
 
-    document.getElementById('generate-summary-form').addEventListener('submit', async function(e) {
-        e.preventDefault();
-        
-        
-        const button = document.getElementById('generate-button');
-        button.disabled = true;
-        button.classList.add('opacity-50', 'cursor-not-allowed');
+    
 
-        const spinner = document.getElementById('summary-loading-spinner');
-        
-        // Disable button and show spinner
-        button.disabled = true;
-        spinner.classList.remove('hidden');
-        
-        try {
-            const response = await fetch('/generate-summary', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                }
-            });
-            
-            const data = await response.json();
-            
-            if (data.status === 'success') {
-                modalToast(data.message, 3000, 300, false);
-                // Refresh the page to show new summary
-                setTimeout(() => window.location.reload(), 3000);
-            } else {
-                modalToast(data.message || 'An error occurred', 3000, 300, true);
-            }
-        } catch (error) {
-            modalToast('An error occurred. Please try again.', 3000, 300, true);
-        } finally {
-            // Re-enable button and hide spinner
-            button.disabled = false;
-            spinner.classList.add('hidden');
-            button.classList.remove('opacity-50', 'cursor-not-allowed');
-        }
-    });
-
+    // Initialize newsletter toggle handlers when DOM is loaded
     document.addEventListener('DOMContentLoaded', function() {
-        document.querySelectorAll('.newsletter-toggle').forEach(toggle => {
-            toggle.addEventListener('change', async function(e) {
+        console.log('Initializing newsletter toggles...');
+        const toggles = document.querySelectorAll('.newsletter-toggle');
+        console.log('Found toggles:', toggles.length);
+
+        toggles.forEach(toggle => {
+            toggle.addEventListener('change', async function(event) {
+                console.log('Toggle changed:', this.dataset.newsletterId);
                 const newsletterId = this.dataset.newsletterId;
-                const checkbox = this;
+                const toggleLabel = this.closest('label');
+                
+                // Disable the toggle while processing
+                toggleLabel.classList.add('opacity-50', 'cursor-not-allowed');
+                this.disabled = true;
                 
                 try {
+                    console.log('Making API call for newsletter:', newsletterId);
                     const response = await fetch(`/api/newsletter/${newsletterId}/toggle`, {
                         method: 'POST',
                         headers: {
-                            'Content-Type': 'application/json'
-                        }
+                            'Content-Type': 'application/json',
+                            'X-Requested-With': 'XMLHttpRequest'
+                        },
+                        credentials: 'same-origin'
                     });
                     
+                    console.log('API response:', response.status);
                     const data = await response.json();
                     
                     if (response.ok) {
                         modalToast(data.message, 1500, 300, false);
                     } else {
-                        // Revert the checkbox if the API call failed
-                        checkbox.checked = !checkbox.checked;
+                        // If there's an error, revert the toggle
+                        this.checked = !this.checked;
                         modalToast(data.error || 'An error occurred', 3000, 300, true);
                     }
                 } catch (error) {
-                    // Revert the checkbox if there was a network error
-                    checkbox.checked = !checkbox.checked;
-                    modalToast('Network error occurred', 3000, 300, true);
+                    console.error('API call failed:', error);
+                    // If there's an error, revert the toggle
+                    this.checked = !this.checked;
+                    modalToast('An error occurred. Please try again.', 3000, 300, true);
+                } finally {
+                    // Re-enable the toggle
+                    toggleLabel.classList.remove('opacity-50', 'cursor-not-allowed');
+                    this.disabled = false;
                 }
             });
+            console.log('Added event listener to toggle:', toggle.dataset.newsletterId);
         });
     });
-
-    
 </script>
 {% endblock %}
