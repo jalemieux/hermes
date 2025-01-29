@@ -154,25 +154,29 @@ def collect_summarize_and_voice_emails():
 
         for user in users:
             summary_generator = SummaryGenerator()
-            new_summary = summary_generator.collect_and_summarize_emails(user.id, start_date=datetime.now() - timedelta(days=1))
-            db.session.commit()
-            logger.info(f"Successfully collected and summarized emails for user {user.id}")
-            voice_generator = VoiceClipGenerator()
-            success = voice_generator.summary_to_audio(new_summary)
-            logger.info(f"Successfully generated audio for summary {new_summary.id}")
-            email_sender = EmailSender()
+            summaries = summary_generator.collect_and_summarize_emails(user.id, start_date=datetime.now() - timedelta(days=1))
+            if summaries is None:
+                continue
+            
+            for summary in summaries:
+                db.session.commit()
+                logger.info(f"Successfully collected and summarized emails for user {user.id}")
+                voice_generator = VoiceClipGenerator()
+                success = voice_generator.summary_to_audio(summary)
+                logger.info(f"Successfully generated audio for summary {summary.id}")
+                email_sender = EmailSender()
             email_body = f"""
             Hello,
 
             Your new summary is ready. You can view it by clicking the link below:
 
-            {url_for('main.view_summary', summary_id=new_summary.id, _external=True)}
+            {url_for('main.view_summary', summary_id=summary.id, _external=True)}
 
             Best regards,
             Hermes Team
             """
             email_sender.send_email(user.email, "Your New Summary is Ready", email_body)
-            logger.info(f"Sent email with link to new summary {new_summary.id} to user {user.email}")
+            logger.info(f"Sent email with link to new summary {summary.id} to user {user.email}")
 
             
         # Record successful execution

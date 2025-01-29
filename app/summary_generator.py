@@ -155,7 +155,7 @@ class SummaryGenerator:
         mailbox = MailboxAccessor()
         
         # Calculate days between dates for fetching emails
-        days_diff = (datetime.now() - start_date).days + 1
+        days_diff = (datetime.now() - start_date).days
         logging.info(f"Fetching emails from last {days_diff} days")
         mailbox_id = User.query.get(user_id).mailslurp_inbox_id
         emails = mailbox.get_emails_from_last_n_days(mailbox_id, days_diff)
@@ -163,7 +163,7 @@ class SummaryGenerator:
         
         if len(emails) == 0:
             logging.info(f"No emails found")
-            raise Exception("No emails found")
+            return None
         
         email_ids = self.process_emails(emails, user_id)
         logging.info(f"Processed content: {email_ids}")
