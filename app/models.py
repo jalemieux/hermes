@@ -230,7 +230,7 @@ class Email(db.Model):
     has_audio = db.Column(db.Boolean, default=False)
     audio_text = db.Column(db.Text, nullable=True)  # New field for storing audio-friendly text
 
-    audio_creation_state = db.Column(db.String(20), default='none')  # Possible values: 'none', 'started', 'completed'
+    #audio_creation_state = db.Column(db.String(20), default='none')  # Possible values: 'none', 'started', 'completed'
 
     def to_newsletter(self):
         """Convert the email record to a Newsletter object format"""
