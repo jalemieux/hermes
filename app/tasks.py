@@ -724,6 +724,64 @@ def generate_summary_audio():
                     
                     
 
+def process_recent_emails_and_create_newsletters():
+    """
+    Fetch emails from the last 5 days and create newsletter records for each unique newsletter.
+    This function:
+    1. Gets all users with configured mailboxes
+    2. For each user, fetches emails from last 5 days
+    3. For each email, identifies the newsletter name
+    4. Creates newsletter records if they don't already exist
+    """
+    app = create_app()
+    
+    with app.app_context():
+        logger.info("Starting process_recent_emails_and_create_newsletters task")
+        
+        users = User.query.filter(User.mailslurp_inbox_id.isnot(None)).all()
+        mailbox_accessor = MailboxAccessor()
+        summary_generator = SummaryGenerator()
+        
+        for user in users:
+            logger.info(f"Processing user {user.id}")
+            inbox_id = user.mailslurp_inbox_id
+            
+            # Fetch emails from last 5 days
+            emails = mailbox_accessor.get_emails_from_last_n_days(inbox_id, 5)
+            logger.info(f"Found {len(emails)} emails for user {user.id}")
+            
+            # Track newsletters we've already processed
+            newsletter_dict = {}
+            
+            for email in emails:
+                newsletter_name = summary_generator.newsletter_name(email)
+                logger.info(f"Identified email as newsletter: {newsletter_name}")
+                
+                # Check if we've already processed this newsletter name
+                if newsletter_name not in newsletter_dict:
+                    # Check if newsletter already exists in database
+                    existing_newsletter = Newsletter.query.filter_by(
+                        user_id=user.id,
+                        name=newsletter_name
+                    ).first()
+                    
+                    if not existing_newsletter:
+                        # Create new newsletter record
+                        new_newsletter = Newsletter(
+                            name=newsletter_name,
+                            is_active=True,
+                            user_id=user.id,
+                            sender=email.sender.email_address,
+                            latest_date=datetime.now()
+                        )
+                        db.session.add(new_newsletter)
+                        db.session.commit()
+                        logger.info(f"Created new active newsletter: {newsletter_name}")
+                    
+                    newsletter_dict[newsletter_name] = True
+        
+        TaskExecution.record_execution('process_recent_emails_and_create_newsletters', 'success')
+        logger.info("Successfully completed process_recent_emails_and_create_newsletters task")
 
 if __name__ == "__main__":
     import sys
@@ -745,6 +803,7 @@ if __name__ == "__main__":
         print("- print_last_email")
         print("- list_users")
         print("- collect_summarize_and_voice_emails")
+        print("- process_recent_emails_and_create_newsletters")
         sys.exit(1)
     
     task_name = sys.argv[1]
@@ -778,6 +837,8 @@ if __name__ == "__main__":
         list_users()
     elif task_name == "collect_summarize_and_voice_emails":
         collect_summarize_and_voice_emails()
+    elif task_name == "process_recent_emails_and_create_newsletters":
+        process_recent_emails_and_create_newsletters()
 
     else:
         print(f"Unknown task: {task_name}")
@@ -794,4 +855,5 @@ if __name__ == "__main__":
         print("- generate_weekly_summaries")
         print("- generate_summary_audio")
         print("- collect_summarize_and_voice_emails")
+        print("- process_recent_emails_and_create_newsletters")
         sys.exit(1)

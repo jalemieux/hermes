@@ -174,7 +174,7 @@ class SummaryGenerator:
         for email in emails:
             #newsletter_name = self.newsletter_name(all_newsletters, email.sender.email_address, email.subject).newsletter_name
             #print(email)
-            newsletter_name = self.newsletter_sender(f"{str(email.sender)} {str(email.subject)} {str(email.text_excerpt)} {str(email.recipients)}")
+            newsletter_name = self.newsletter_name(email))
             logging.info(f"identified email as newsletter: {newsletter_name}")
             # Check if the newsletter name is in the list of all newsletters
             if newsletter_name not in newsletter_dict:
@@ -191,6 +191,7 @@ class SummaryGenerator:
                 db.session.commit()
                 logging.info(f"Created new active newsletter: {newsletter_name}")
                 newsletter_dict[newsletter_name] = True
+                emails_to_process.append(email)
             else:
                 if not newsletter_dict[newsletter_name]:
                     # If the newsletter is inactive, remove the email from the list
@@ -684,7 +685,8 @@ class SummaryGenerator:
         return response.choices[0].message.content
 
     def newsletter_name(self, email) -> str:
-        return email.name
+        return self.newsletter_sender(f"{str(email.sender)} {str(email.subject)} {str(email.text_excerpt)} {str(email.recipients)}")
+
 
     def newsletter_sender(self, email_raw) -> str:
         prompt = f"""
