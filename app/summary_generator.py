@@ -174,7 +174,7 @@ class SummaryGenerator:
         for email in emails:
             #newsletter_name = self.newsletter_name(all_newsletters, email.sender.email_address, email.subject).newsletter_name
             #print(email)
-            newsletter_name = self.newsletter_name(email))
+            newsletter_name = self.newsletter_name(email)
             logging.info(f"identified email as newsletter: {newsletter_name}")
             # Check if the newsletter name is in the list of all newsletters
             if newsletter_name not in newsletter_dict:
