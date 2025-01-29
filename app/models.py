@@ -1,10 +1,8 @@
 # app/models.py
 from flask_sqlalchemy import SQLAlchemy
-import sqlalchemy
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_login import UserMixin
 from datetime import datetime, timedelta
-import json
 import secrets
 
 from config import Config
@@ -105,6 +103,7 @@ class Summary(db.Model):
     # Add this line to existing model
     email_ids = db.Column(db.JSON)  # Store array of email IDs used in summary
 
+    
     def to_text(self) -> str:
         """Get the content of the summary"""
         text = f"Summary from {self.from_date.strftime('%B %d, %Y')} to {self.to_date.strftime('%B %d, %Y')}\n\n"
@@ -230,6 +229,8 @@ class Email(db.Model):
 
     has_audio = db.Column(db.Boolean, default=False)
     audio_text = db.Column(db.Text, nullable=True)  # New field for storing audio-friendly text
+
+    audio_creation_state = db.Column(db.String(20), default='none')  # Possible values: 'none', 'started', 'completed'
 
     def to_newsletter(self):
         """Convert the email record to a Newsletter object format"""
@@ -374,3 +375,12 @@ class ReadStatus(db.Model):
     __table_args__ = (
         db.UniqueConstraint('user_id', 'item_id', 'item_type', name='unique_read_status'),
     )
+
+class AsyncProcessingRequest(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    email_id = db.Column(db.Integer, db.ForeignKey('email.id', ondelete='CASCADE'), nullable=False)
+    type = db.Column(db.String(50), nullable=False)
+    status = db.Column(db.String(50), default='pending')
+    created_at = db.Column(db.DateTime, default=datetime.now)
+
+    email = db.relationship('Email', backref=db.backref('async_requests', lazy=True))
