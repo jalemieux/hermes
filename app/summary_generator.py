@@ -223,7 +223,7 @@ class SummaryGenerator:
             
             new_summary = Summary(
                 user_id=user_id,
-                title=summary.title,
+                title=f"Recap - {datetime.now().strftime('%Y-%m-%d')}",
                 from_date=start_date,
                 to_date=datetime.now(),
                 has_audio=False,
