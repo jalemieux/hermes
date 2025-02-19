@@ -167,7 +167,7 @@ class SummaryGenerator:
             return None
         
         # Get all newsletters
-        all_newsletters = Newsletter.query.all()
+        all_newsletters = Newsletter.query.filter_by(user_id=user_id).all()
         newsletter_dict = {newsletter.name: newsletter.is_active for newsletter in all_newsletters}
         logging.info(f"all newsletters: {newsletter_dict}")
         emails_to_process = []
