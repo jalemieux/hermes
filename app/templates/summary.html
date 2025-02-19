@@ -16,78 +16,86 @@
             <div class="mt-2 flex items-center gap-4 text-sm text-gray-600">
                 <span>{{ summary.end_date }}</span>
                 <span>•</span>
-                <span>{{ summary.source_count }} sources</span>
-                <a href="{{ url_for('main.summary_emails', summary_id=summary.id) }}" 
+                <span><a href="{{ url_for('main.summary_emails', summary_id=summary.id) }}" class="text-blue-500 hover:text-blue-600">{{ summary.sources|length }} sources</a></span>
+                <!-- <a href="{{ url_for('main.summary_emails', summary_id=summary.id) }}" 
                    class="rounded-lg p-2 font-medium transition-colors bg-gray-100 text-gray-900 hover:bg-gray-200"
                    title="View Source Emails">
                     <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <rect width="20" height="16" x="2" y="4" rx="2"></rect>
                         <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"></path>
                     </svg>
-                </a>
-                <a href="{{ url_for('main.chat', summary_id=summary.id) }}" 
+                </a> -->
+                <!-- <a href="{{ url_for('main.chat', summary_id=summary.id) }}" 
                    class="rounded-lg p-2 font-medium transition-colors bg-gray-100 text-gray-900 hover:bg-gray-200"
                    title="Chat About This Summary">
                     <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
                     </svg>
-                </a>        
+                </a>         -->
             </div>
         </div>
 
         <!-- Audio Player -->
-        {% if summary.has_audio %}
         <div class="rounded-lg border border-gray-200 bg-white p-6">
             <audio id="audioPlayer" class="w-full" controls>
                 <source src="{{ url_for('main.get_audio_file', summary_id=summary.id) }}" type="audio/mpeg">
                 Your browser does not support the audio element.
             </audio>
             
-            <div class="mt-4 flex items-center justify-between text-sm text-gray-600">
+            <!-- <div class="mt-4 flex items-center justify-between text-sm text-gray-600">
                 <div id="currentTime">0:00</div>
                 <div id="duration">0:00</div>
-            </div>
+            </div> -->
 
             <div class="mt-4 flex items-center gap-4">
                 <button onclick="skipBackward()" class="rounded-lg p-2 transition-colors hover:bg-gray-100" title="Skip 10s backward">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M3 12h4"></path>
-                        <path d="M7 12a5 5 0 0 1 5-5"></path>
-                        <path d="M7 12a5 5 0 0 0 5 5"></path>
-                        <line x1="3" y1="12" x2="7" y2="9"></line>
-                        <line x1="3" y1="12" x2="7" y2="15"></line>
-                        <text x="13" y="15" font-size="8" fill="currentColor">10</text>
-                    </svg>
-                </button>
+                    <span class="inline-flex items-center rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-800">
+                        << 10
+                    </span>
                 <button id="playPauseBtn" onclick="togglePlayPause()" class="flex-1 rounded-lg bg-gray-900 px-4 py-2 font-medium text-white transition-colors hover:bg-gray-800">
                     Play
                 </button>
                 <button onclick="skipForward()" class="rounded-lg p-2 transition-colors hover:bg-gray-100" title="Skip 10s forward">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M21 12h-4"></path>
-                        <path d="M17 12a5 5 0 0 0-5-5"></path>
-                        <path d="M17 12a5 5 0 0 1-5 5"></path>
-                        <line x1="21" y1="12" x2="17" y2="9"></line>
-                        <line x1="21" y1="12" x2="17" y2="15"></line>
-                        <text x="3" y="15" font-size="8" fill="currentColor">10</text>
-                    </svg>
+                    <span class="inline-flex items-center rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-800">
+                        >> 30
+                    </span>
                 </button>
             </div>
         </div>
-        {% else %}
-        <div class="rounded-lg bg-white p-6">
-            <button id="generateAudioBtn" 
-                    onclick="handleGenerateAudio(event)"
-                    class="inline-flex items-center justify-center rounded-lg px-4 py-2 font-medium transition-colors bg-gray-900 text-white hover:bg-gray-800">
-                <svg id="audioSpinner" class="hidden animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
-                <span id="generateAudioBtnText">Generate Audio Version</span>
-            </button>
-        </div>
-        {% endif %}
 
+
+        <div class="rounded-lg  bg-white">
+            <div class="p-2">
+                <form id="chat-form" class="text-sm flex gap-2">
+                    <input 
+                        type="text" 
+                        id="chat-input"
+                        class="flex-1 rounded-lg border border-gray-300 px-3 py-2 shadow-sm focus:border-gray-500 focus:outline-none disabled:opacity-50 disabled:bg-gray-100"
+                        placeholder="Drill down! Ask me about a news story."
+                        required
+                    >
+                    <button 
+                        type="submit"
+                        class="rounded-lg bg-gray-900 px-4 py-2 text-white hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                        Ask!
+                    </button>
+                </form>
+            </div>
+            <div id="chat-messages" class="hidden h-[500px] overflow-y-auto p-4 space-y-4">
+                <!-- Initial message -->
+                {% if chat_messages %}
+                <div class="flex justify-start">
+                    <div class="rounded-lg px-4 py-2 max-w-[80%] bg-gray-100 text-gray-900">
+                        {{ chat_messages }}
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+            <!-- Chat Input -->
+            
+        </div>
+       
         <!-- Summary Content -->
         <div class="prose prose-gray max-w-none">
             {% if summary.key_points %}
@@ -160,7 +168,6 @@
 </main>
 
 <script>
-    {% if summary.has_audio %}
     const audio = document.getElementById('audioPlayer');
     const playPauseBtn = document.getElementById('playPauseBtn');
     const currentTimeDisplay = document.getElementById('currentTime');
@@ -187,57 +194,78 @@
     }
 
     function skipForward() {
-        audio.currentTime = Math.min(audio.duration, audio.currentTime + 10);
+        audio.currentTime = Math.min(audio.duration, audio.currentTime + 30);
     }
 
     audio.addEventListener('timeupdate', () => {
         currentTimeDisplay.textContent = formatTime(audio.currentTime);
     });
 
-    audio.addEventListener('loadedmetadata', () => {
-        durationDisplay.textContent = formatTime(audio.duration);
-    });
 
     audio.addEventListener('ended', () => {
         playPauseBtn.textContent = 'Play';
     });
-    {% else %}
-    function handleGenerateAudio(event) {
-        const button = event.currentTarget;
-        const spinner = document.getElementById('audioSpinner');
-        const buttonText = document.getElementById('generateAudioBtnText');
+
+
+    const chatMessages = document.getElementById('chat-messages');
+    const chatForm = document.getElementById('chat-form');
+    const chatInput = document.getElementById('chat-input');
+
+    function addMessage(message, isUser = false) {
+        const messageDiv = document.createElement('div');
+        messageDiv.className = `flex ${isUser ? 'justify-end' : 'justify-start'}`;
         
-        // Disable button and show spinner
-        button.disabled = true;
-        spinner.classList.remove('hidden');
-        buttonText.textContent = 'Generating...';
+        const messageContent = document.createElement('div');
+        messageContent.className = `rounded-lg px-4 py-2 max-w-[80%] ${
+            isUser 
+                ? 'bg-gray-900 text-white' 
+                : 'bg-gray-100 text-gray-900'
+        }`;
+        messageContent.textContent = message;
         
-        // Make API call to generate audio
-        fetch(`/generate-audio/summary/{{ summary.id }}`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            }
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.status === 'success') {
-                // Reload the page to show the audio player
-                window.location.reload();
-            } else {
-                throw new Error(data.message);
-            }
-        })
-        .catch(error => {
-            // Re-enable button and hide spinner
-            button.disabled = false;
-            spinner.classList.add('hidden');
-            buttonText.textContent = 'Generate Audio Version';
-            
-            // Show error message
-            alert('Failed to generate audio: ' + error.message);
-        });
+        messageDiv.appendChild(messageContent);
+        chatMessages.appendChild(messageDiv);
+        chatMessages.scrollTop = chatMessages.scrollHeight;
     }
-    {% endif %}
+
+    chatForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        
+        const message = chatInput.value.trim();
+        if (!message) return;
+        
+        // Disable input and show user message
+        chatInput.value = '';
+        chatInput.disabled = true;
+        chatForm.querySelector('button').disabled = true;
+        chatMessages.classList.remove('hidden');
+        addMessage(message, true);
+        
+        try {
+            const response = await fetch('/chat/send', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ message }),
+            });
+            
+            const data = await response.json();
+            
+            if (data.status === 'success') {
+                addMessage(data.message);
+            } else {
+                addMessage('Sorry, there was an error processing your message.');
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            addMessage('Sorry, there was an error processing your message.');
+        } finally {
+            // Re-enable input
+            chatInput.disabled = false;
+            chatForm.querySelector('button').disabled = false;
+            chatInput.focus();
+        }
+    });
 </script>
 {% endblock %} 

@@ -18,6 +18,8 @@ from app.voice_generator import VoiceClipGenerator
 from app.email_sender import EmailSender
 logging.basicConfig(level=logging.DEBUG)
 
+from pytz import timezone
+
 
 main = Blueprint('main', __name__)
 
@@ -150,46 +152,72 @@ def dashboard():
     db_summaries_formatted = [
         {
             'title': summary.title,
-            'start_date': summary.from_date.strftime('%B %d, %Y'),
-            'end_date': summary.to_date.strftime('%B %d, %Y'),
+            'start_date': summary.from_date.strftime('%B %d'),
+            'end_date': summary.to_date.strftime('%B %d'),
             'read_url': url_for('main.read_summary', summary_id=summary.id),
             'type': 'summary',
             'has_audio': summary.has_audio,
             'id': summary.id,
-            'is_read': ('summary', summary.id) in read_items
+            'is_read': ('summary', summary.id) in read_items, 
+            'sources': summary.sources
         }
         for summary in db_summaries.items
     ]
 
-    # Fetch non-excluded emails from the database with pagination
-    emails = Email.query.filter_by(user_id=current_user.id, is_excluded=False) \
-                        .order_by(Email.created_at.desc()) \
-                        .paginate(page=page, per_page=per_page, error_out=False)
+    # # Fetch non-excluded emails from the database with pagination
+    # emails = Email.query.filter_by(user_id=current_user.id, is_excluded=False) \
+    #                     .order_by(Email.created_at.desc()) \
+    #                     .paginate(page=page, per_page=per_page, error_out=False)
 
-    # Modify the email formatting to include read status
-    emails_formatted = [
-        {
-            'title': email.name,
-            'start_date': email.created_at.strftime('%B %d, %Y'),
-            'end_date': email.created_at.strftime('%B %d, %Y'),
-            'read_url': url_for('main.read_email', email_id=email.id),
-            'has_audio': email.has_audio,
-            'type': 'email',
-            'id': email.id,
-            'is_read': ('email', email.id) in read_items
-        }
-        for email in emails.items
-    ]
+    # # Modify the email formatting to include read status
+    # emails_formatted = [
+    #     {
+    #         'title': email.name,
+    #         'start_date': email.created_at.strftime('%B %d, %Y'),
+    #         'end_date': email.created_at.strftime('%B %d, %Y'),
+    #         'read_url': url_for('main.read_email', email_id=email.id),
+    #         'has_audio': email.has_audio,
+    #         'type': 'email',
+    #         'id': email.id,
+    #         'is_read': ('email', email.id) in read_items
+    #     }
+    #     for email in emails.items
+    # ]
 
     # Combine and sort by end_date (most recent first)
     combined_summaries = sorted(
         db_summaries_formatted, #+ emails_formatted,
-        key=lambda x: datetime.strptime(x['end_date'], '%B %d, %Y'),
+        key=lambda x: datetime.strptime(x['end_date'], '%B %d'),
         reverse=True
     )
 
     # Get newsletters from the database
-    newsletters = Newsletter.query.filter_by(user_id=current_user.id).all()
+    newsletters = Newsletter.query.filter(Newsletter.user_id != current_user.id).distinct().all()
+
+    # # Calculate the start date as the last occurrence of 7 AM PST
+    # pst = timezone('America/Los_Angeles')
+    # now_utc = datetime.now(timezone('UTC'))
+    # now_pst = now_utc.astimezone(pst)
+    # if now_pst.hour < 7:
+    #     last_7am_pst = now_pst.replace(hour=7, minute=0, second=0, microsecond=0) - timedelta(days=1)
+    # else:
+    #     last_7am_pst = now_pst.replace(hour=7, minute=0, second=0, microsecond=0)
+    # start_date = last_7am_pst.astimezone(timezone('UTC'))
+
+    # # Fetch emails created since the last 7 AM PST
+    # upcoming_emails = Email.query.filter(
+    #     Email.user_id == current_user.id,
+    #     Email.created_at >= start_date
+    # ).all()
+
+    # # Format the upcoming emails
+    # upcoming_emails_formatted = [
+    #     {
+    #         'subject': email.subject,
+    #         'sender': email.sender
+    #     }
+    #     for email in upcoming_emails
+    # ]
 
     return render_template('dashboard.html',
                            mailslurp_email_address=current_user.mailslurp_email_address,
@@ -198,7 +226,8 @@ def dashboard():
                            email_forwarding_enabled=current_user.email_forwarding_enabled,
                            newsletters=newsletters,
                            page=page,
-                           total_pages=max(db_summaries.pages, emails.pages))
+                           total_pages=db_summaries.pages)
+                           
 
 @main.route('/authorize-gmail')
 @login_required

@@ -17,14 +17,7 @@
 
     <div class="grid grid-cols-1 gap-8 lg:grid-cols-3">
         <div class="lg:col-span-2 space-y-6">
-            
             <div class="rounded-lg border border-gray-200 bg-white p-6">
-                {% if summaries %}
-                <div class="flex items-center justify-between">
-                    <h2 class="text-xl font-semibold">Daily Summaries</h2>
-                    
-                </div>
-                {% else %}
                 <div class="mt-4 rounded-lg p-6 text-center ">
                     <h2 class="text-xl font-semibold">Welcome to Hermes!</h2>
                     <p class="mt-2 text-gray-700">
@@ -42,16 +35,26 @@
                         </li>
                     </ul>
                 </div>
-                {% endif %}
+            </div>
+            <div class="rounded-lg border border-gray-200 bg-white p-6">
+               
+                <div class="flex items-center justify-between">
+                    <h2 class="text-xl font-semibold">Daily Summaries</h2>
+                </div>
                 <div class="mt-4 divide-y divide-gray-200">
                     {% if summaries %}
                         
                         {% for summary in summaries %}
-                        <div class="py-4">
+                        <a href="{{ summary.read_url }}" class="block mt-4 rounded-lg p-4 bg-blue-50 shadow-lg">
                             <div class="flex items-start justify-between gap-4">
                                 <div class="flex-grow">
-                                    {% if summary.type == 'summary' %}
                                     <div class="flex items-center gap-2 text-blue-800 mb-2">
+                                        {% if not summary.is_read %}
+                                            <svg xmlns="http://www.w3.org/2000/svg" class="ml-2 inline-flex items-center rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-800" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                            <path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2zm1 14.59l-3.29-3.3a1 1 0 0 1 1.42-1.42l1.88 1.88 4.88-4.88a1 1 0 0 1 1.42 1.42z"/>
+                                        </svg>
+                                        {% endif %}
+
                                         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                             <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
                                             <path d="M14 2v6h6"/>
@@ -59,30 +62,25 @@
                                             <line x1="16" y1="17" x2="8" y2="17"/>
                                             <line x1="10" y1="9" x2="8" y2="9"/>
                                         </svg>
-                                        <span class="text-sm font-medium">
-                                            Summary
-                                            {% if not summary.is_read %}
-                                            <span class="ml-2 inline-flex items-center rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-800">New</span>
-                                            {% endif %}
+                                        {% if not summary.is_read %}
+                                        <span class="text-lg font-bold">
+                                        {% else %}
+                                        <span class="text-lg font-medium">
+                                        {% endif %}
+                                            {{ summary.title }}
+                                        </span>
+                                        <span class="text-sm text-gray-600">
+                                            ({{ summary.sources|length }} sources)
                                         </span>
                                     </div>
                                     
-                                    {% endif %}
                                     
-                                  <h3 class="font-medium text-gray-900 mb-1 {% if not summary.is_read %}font-bold{% endif %}">
-                                    {{ summary.title }}
-                                  </h3>
                                     <p class="text-sm text-gray-600">
-                                        {% if summary.type == 'summary' %}
-                                            {{ summary.start_date }} - {{ summary.end_date }}
-                                        {% else %}
-                                            {{ summary.end_date }}
-                                            {{summary.type }}
-                                        {% endif %}
+                                        from {{ summary.start_date }} to {{ summary.end_date }}
                                     </p>
                                 </div>
                                 
-                                <div class="flex items-center gap-2">
+                                <!-- <div class="flex items-center gap-2">
                                     <a href="{{ summary.read_url }}" 
                                        class="inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors {% if summary.type == 'summary' %}bg-blue-50 text-blue-700 hover:bg-blue-100{% else %}bg-purple-50 text-purple-700 hover:bg-purple-100{% endif %}" 
                                        title="Read">
@@ -104,9 +102,9 @@
                                         Listen
                                     </a>
                                     {% endif %}
-                                </div>
+                                </div> -->
                             </div>
-                        </div>
+                        </a>
                         {% endfor %}
                     {% endif %}
                      <!-- Pagination Controls -->
@@ -128,16 +126,25 @@
                 </div>
             </div>
             <div class="rounded-lg border border-gray-200 bg-white p-6">
-                <h2 class="text-xl font-semibold">Upcoming Features</h2>
+                <h2 class="text-xl font-semibold">News Sources Recommendations</h2>
                 <div class="mt-4 space-y-3">
+                    {% for newsletter in newsletters %}
                     <div class="flex items-center gap-3 p-3 rounded-lg border border-gray-100 hover:bg-gray-50 transition-colors">
                         <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-blue-500">
                             <path d="M3 3h18v18H3z"></path>
                             <path d="M3 7h18"></path>
                         </svg>
-                        <span class="text-gray-600">Email inbox integration: Hermes discovers and collects newsletter in your personal</span>
+                        <span class="text-gray-600">{{ newsletter.name }}</span>
                     </div>
-                    <div class="flex items-center gap-3 p-3 rounded-lg border border-gray-100 hover:bg-gray-50 transition-colors">
+                    {% endfor %}
+                    <!-- <div class="flex items-center gap-3 p-3 rounded-lg border border-gray-100 hover:bg-gray-50 transition-colors">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-blue-500">
+                            <path d="M3 3h18v18H3z"></path>
+                            <path d="M3 7h18"></path>
+                        </svg>
+                        <span class="text-gray-600">Email inbox integration: Hermes discovers and collects newsletter in your personal</span>
+                    </div> -->
+                    <!-- <div class="flex items-center gap-3 p-3 rounded-lg border border-gray-100 hover:bg-gray-50 transition-colors">
                         <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-purple-500">
                             <path d="M12 2v8"></path>
                             <path d="M16 6l-4 4-4-4"></path>
@@ -159,7 +166,7 @@
                             <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>
                         </svg>
                         <span class="text-gray-600">Content Expansion: more news sources like twitter, youtube, podcasts.</span>
-                    </div>
+                    </div> -->
                 </div>
             </div>
         </div>
@@ -195,7 +202,7 @@
                 </div>
                 <hr class="my-4 border-t border-gray-200">
                 
-            <div class="mt-4">
+                <div class="mt-4">
                     <form action="{{ url_for('main.email_forwarder') }}" method="POST">
                         <label class="flex items-center">
                             <div class="relative inline-block w-10 mr-2 align-middle select-none">
@@ -214,25 +221,42 @@
                 </div>
             </div>
             
-            <!-- <div class="rounded-lg border border-gray-200 bg-white p-6">
-                <h2 class="text-xl font-semibold">Upcoming Emails for Next Run</h2>
+            <div class="rounded-lg border border-gray-200 bg-white p-6">
+                <h2 class="text-xl font-semibold">Your News Sources</h2>
                 <div class="mt-4 divide-y divide-gray-200">
-                    {% if upcoming_emails %}
-                        {% for email in upcoming_emails %}
+                    {% if newsletters %}
+                        {% for newsletter in newsletters %}
                         <div class="flex items-center justify-between py-4">
                             <div>
-                                <h3 class="font-medium text-gray-900">{{ email.subject }}</h3>
-                                <p class="text-sm text-gray-600">From: {{ email.sender }}</p>
+                                <h3 class="font-medium text-gray-900">{{ newsletter.name }}</h3>
+                                <p class="text-sm text-gray-600">From: {{ newsletter.sender }}</p>
+                            </div>
+                            <div class="flex items-center">
+                                <label class="relative inline-flex items-center cursor-pointer">
+                                    <input type="checkbox"
+                                           name="newsletter-toggle"
+                                           id="newsletter-toggle-{{ newsletter.id }}"
+                                           {% if newsletter.is_active %}checked{% endif %}
+                                           class="sr-only peer newsletter-toggle"
+                                           data-newsletter-id="{{ newsletter.id }}"
+                                    >
+                                    <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer 
+                                              peer-checked:after:translate-x-full peer-checked:after:border-white 
+                                              after:content-[''] after:absolute after:top-[2px] after:left-[2px] 
+                                              after:bg-white after:border-gray-300 after:border after:rounded-full 
+                                              after:h-5 after:w-5 after:transition-all peer-checked:bg-gray-900">
+                                    </div>
+                                </label>
                             </div>
                         </div>
                         {% endfor %}
                     {% else %}
                     <div class="py-4 text-sm rounded-lg text-gray-600 border border-gray-200 bg-blue-50 p-4 shadow-lg">
-                        <p>No upcoming emails scheduled for the next run.</p>
+                        <p>No news sources added yet.</p>
                     </div>
                     {% endif %}
                 </div>
-            </div> -->
+            </div>
 
             <!-- <div class="rounded-lg border border-gray-200 bg-white p-6">
                 <h2 class="text-xl font-semibold">Active Newsletters</h2>
