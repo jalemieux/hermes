@@ -222,6 +222,26 @@
             </div>
             
             <div class="rounded-lg border border-gray-200 bg-white p-6">
+                <h2 class="text-xl font-semibold">Upcoming Emails for Next Run</h2>
+                <div class="mt-4 divide-y divide-gray-200">
+                    {% if upcoming_emails %}
+                        {% for email in upcoming_emails %}
+                        <div class="flex items-center justify-between py-4">
+                            <div>
+                                <h3 class="font-medium text-gray-900">{{ email.subject }}</h3>
+                                <p class="text-sm text-gray-600">From: {{ email.sender }}</p>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                    <div class="py-4 text-sm rounded-lg text-gray-600 border border-gray-200 bg-blue-50 p-4 shadow-lg">
+                        <p>No upcoming emails scheduled for the next run.</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="rounded-lg border border-gray-200 bg-white p-6">
                 <h2 class="text-xl font-semibold">Active Newsletters</h2>
                 <p class="py-4 text-sm text-gray-600">
                     Don't want a particular newsletter in your daily summary? Just uncheck it, and Hermes will skip it next time.

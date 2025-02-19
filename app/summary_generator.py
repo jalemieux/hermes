@@ -524,6 +524,7 @@ class SummaryGenerator:
                 logging.debug(f"existing email: {email.subject}")
             email_ids.append(id)
         return email_ids
+    
     def summarize_content(self, email_ids) -> tuple[SummaryModel, list[SourceModel], list[str]]:
 
         # get all the source content   
@@ -635,31 +636,47 @@ class SummaryGenerator:
  
         
 
-    def identify_newsletters(self, inbox_id, days=30):
-        """Identify unique newsletters by analyzing email subjects from the last 30 days"""
+    def identify_newsletters(self, inbox_id):
+        """Identify unique newsletters by analyzing email subjects from the last 24 hours"""
         end_date = datetime.now()
-        start_date = end_date - timedelta(days=days)
+        start_date = end_date - timedelta(days=1)
         
-        # Fetch emails for the last 30 days
+        # Fetch emails for the last 24 hours
         emails = self.fetch_emails(inbox_id, start_date, end_date)
         
-        # Group emails by sender and normalized subject
-        newsletters = {}
-        subjects_senders = []
+        # Get all newsletters
+        all_newsletters = Newsletter.query.all()
+        newsletter_dict = {newsletter.name: newsletter.is_active for newsletter in all_newsletters}
+        logging.info(f"all newsletters: {newsletter_dict}")
+        emails_to_process = []
         for email in emails:
-            subjects_senders.append({"subject": email.subject, "sender": email._from})
-        prompt = "Given a list of sender and subject, identify the newsletters that are recurring. Return a list of unique newsletters."
-        parsed = self.openai_client.beta.chat.completions.parse(
-            model="gpt-4o",
-            messages=[
-                {"role": "system", "content": prompt},
-                {"role": "user", "content": str(subjects_senders)}
-            ],
-            response_format=NewsletterModel
-        )
-        newsletters = parsed.choices[0].message.parsed
-        return newsletters.newsletters
+            newsletter_name = self.newsletter_name(email)
+            logging.info(f"identified email as newsletter: {newsletter_name}")
+            # Check if the newsletter name is in the list of all newsletters
+            if newsletter_name not in newsletter_dict:
+                # If not, create a new Newsletter object with is_active set to True
+                new_newsletter = Newsletter(
+                    name=newsletter_name,
+                    is_active=True,
+                    user_id=email.user_id, 
+                    sender=email.sender.email_address,
+                    latest_date=datetime.now()
+                )
+                db.session.add(new_newsletter)
+                db.session.commit()
+                logging.info(f"Created new active newsletter: {newsletter_name}")
+                newsletter_dict[newsletter_name] = True
+                emails_to_process.append(email)
+            else:
+                if not newsletter_dict[newsletter_name]:
+                    # If the newsletter is inactive, remove the email from the list
+                    logging.info(f"Skipping email from inactive newsletter: {newsletter_name}")
+                else:
+                    emails_to_process.append(email)
+                    logging.info(f"Adding email to process: {email.subject}")
         
+        logging.info(f"Filtered emails to {len(emails_to_process)} active newsletter emails")
+        return emails_to_process
 
     
 
