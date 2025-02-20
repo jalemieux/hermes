@@ -17,6 +17,7 @@
 
     <div class="grid grid-cols-1 gap-8 lg:grid-cols-3">
         <div class="lg:col-span-2 space-y-6">
+            {% if not summaries %}
             <div class="rounded-lg border border-gray-200 bg-white p-6">
                 <div class="mt-4 rounded-lg p-6 text-center ">
                     <h2 class="text-xl font-semibold">Welcome to Hermes!</h2>
@@ -36,6 +37,7 @@
                     </ul>
                 </div>
             </div>
+            {% endif %}
             <div class="rounded-lg border border-gray-200 bg-white p-6">
                
                 <div class="flex items-center justify-between">
@@ -125,7 +127,7 @@
                     </div>
                 </div>
             </div>
-            <div class="rounded-lg border border-gray-200 bg-white p-6">
+            <!-- <div class="rounded-lg border border-gray-200 bg-white p-6">
                 <h2 class="text-xl font-semibold">News Sources Recommendations</h2>
                 <div class="mt-4 space-y-3">
                     {% for newsletter in newsletters %}
@@ -137,38 +139,9 @@
                         <span class="text-gray-600">{{ newsletter.name }}</span>
                     </div>
                     {% endfor %}
-                    <!-- <div class="flex items-center gap-3 p-3 rounded-lg border border-gray-100 hover:bg-gray-50 transition-colors">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-blue-500">
-                            <path d="M3 3h18v18H3z"></path>
-                            <path d="M3 7h18"></path>
-                        </svg>
-                        <span class="text-gray-600">Email inbox integration: Hermes discovers and collects newsletter in your personal</span>
-                    </div> -->
-                    <!-- <div class="flex items-center gap-3 p-3 rounded-lg border border-gray-100 hover:bg-gray-50 transition-colors">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-purple-500">
-                            <path d="M12 2v8"></path>
-                            <path d="M16 6l-4 4-4-4"></path>
-                            <path d="M2 14h20v8H2z"></path>
-                        </svg>
-                        <span class="text-gray-600">Newsletter Recommendations: Get more news content based on your interests</span>
-                    </div>
-                    <div class="flex items-center gap-3 p-3 rounded-lg border border-gray-100 hover:bg-gray-50 transition-colors">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-green-500">
-                            <path d="M3 3h18v18H3z"></path>
-                            <path d="M3 9h18"></path>
-                            <path d="M9 21V9"></path>
-                        </svg>
-                        <span class="text-gray-600">Double click: chat with your news, drill down on news</span>
-                    </div>
-                    <div class="flex items-center gap-3 p-3 rounded-lg border border-gray-100 hover:bg-gray-50 transition-colors">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-orange-500">
-                            <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path>
-                            <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>
-                        </svg>
-                        <span class="text-gray-600">Content Expansion: more news sources like twitter, youtube, podcasts.</span>
-                    </div> -->
+                   
                 </div>
-            </div>
+            </div> -->
         </div>
 
         <div class="lg:col-span-1 space-y-6">
@@ -258,93 +231,7 @@
                 </div>
             </div>
 
-            <!-- <div class="rounded-lg border border-gray-200 bg-white p-6">
-                <h2 class="text-xl font-semibold">Active Newsletters</h2>
-                <p class="py-4 text-sm text-gray-600">
-                    Don't want a particular newsletter in your daily summary? Just uncheck it, and Hermes will skip it next time.
-                </p>
-                <div class="mt-4 divide-y divide-gray-200">
-                    {% if newsletters %}
-                        {% for newsletter in newsletters %}
-                        <div class="flex items-center justify-between py-4">
-                            <div>
-                                <h3 class="font-medium text-gray-900">{{ newsletter.name }}</h3>
-                                <p class="text-sm text-gray-600">{{ newsletter.sender }}</p>
-                            </div>
-                            <div class="flex items-center">
-                                <label class="relative inline-flex items-center cursor-pointer">
-                                    <input type="checkbox"
-                                           name="newsletter-toggle"
-                                           id="newsletter-toggle-{{ newsletter.id }}"
-                                           {% if newsletter.is_active %}checked{% endif %}
-                                           class="sr-only peer newsletter-toggle"
-                                           data-newsletter-id="{{ newsletter.id }}"
-                                    >
-                                    <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer 
-                                              peer-checked:after:translate-x-full peer-checked:after:border-white 
-                                              after:content-[''] after:absolute after:top-[2px] after:left-[2px] 
-                                              after:bg-white after:border-gray-300 after:border after:rounded-full 
-                                              after:h-5 after:w-5 after:transition-all peer-checked:bg-gray-900">
-                                    </div>
-                                </label>
-                            </div>
-                        </div>
-                        {% endfor %}
-                    {% else %}
-                    <div class="py-4 text-sm rounded-lg text-gray-600 border border-gray-200 bg-blue-50 p-4 shadow-lg">
-
-                            <p>
-                                Last time Hermes checked, there were no newsletters to summarize. If you just subscribed to a new newsletter, it will appear the following day.
-                            </p>
-                        </div>
-                    {% endif %}
-                </div>
-            </div> -->
-            <!-- <div class="rounded-lg border border-gray-200 bg-white p-6">
-                <h2 class="text-xl font-semibold">Digest Settings</h2>
-                <form action="/settings/update" method="POST" class="mt-4 space-y-4">
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700">Frequency</label>
-                        <select name="frequency" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
-                            <option value="daily" {% if frequency == 'daily' %}selected{% endif %}>Daily</option>
-                            <option value="weekly" {% if frequency == 'weekly' %}selected{% endif %}>Weekly</option>
-                            <option value="monthly" {% if frequency == 'monthly' %}selected{% endif %}>Monthly</option>
-                        </select>
-                    </div>
-                    <button type="submit" class="w-full rounded-lg px-4 py-2 font-medium transition-colors bg-gray-400 text-white hover:bg-gray-800">
-                        Save Changes
-                    </button>
-                </form>
-            </div> -->
-
-            <!-- <div class="rounded-lg border border-gray-200 bg-white p-6">
-                <h2 class="text-xl font-semibold">Quick Actions</h2>
-                <div class="mt-4 space-y-2">
-                    <a href="/sources" class="flex w-full items-center rounded-lg border border-gray-300 px-4 py-2 font-medium transition-colors hover:bg-gray-50">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-2 h-4 w-4">
-                            <rect width="20" height="16" x="2" y="4" rx="2"></rect>
-                            <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"></path>
-                        </svg>
-                        Manage Sources
-                    </a>
-                    <a href="/schedule" class="flex w-full items-center rounded-lg border border-gray-300 px-4 py-2 font-medium transition-colors hover:bg-gray-50">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-2 h-4 w-4">
-                            <rect width="18" height="18" x="3" y="4" rx="2" ry="2"></rect>
-                            <line x1="16" x2="16" y1="2" y2="6"></line>
-                            <line x1="8" x2="8" y1="2" y2="6"></line>
-                            <line x1="3" x2="21" y1="10" y2="10"></line>
-                        </svg>
-                        Delivery Schedule
-                    </a>
-                    <a href="/preferences" class="flex w-full items-center rounded-lg border border-gray-300 px-4 py-2 font-medium transition-colors hover:bg-gray-50">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-2 h-4 w-4">
-                            <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"></path>
-                            <circle cx="12" cy="12" r="3"></circle>
-                        </svg>
-                        Preferences
-                    </a>
-                </div>
-            </div> -->
+            
 
            
             

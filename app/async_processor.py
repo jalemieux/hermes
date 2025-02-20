@@ -1,5 +1,7 @@
 import threading
-from app.audio_processor import process_audio_requests
+import time
+from app.email_processor import EmailProcessor
+from app.models import User
 
 class AsyncProcessor:
     def __init__(self, app):
@@ -12,4 +14,10 @@ class AsyncProcessor:
 
     def run(self):
         with self.app.app_context():
-            process_audio_requests() 
+            email_processor = EmailProcessor()
+            #process_audio_requests() 
+            for user in User.query.all():
+                email_processor.process_user_emails(user.id)
+
+            
+            time.sleep(300)

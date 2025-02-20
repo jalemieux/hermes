@@ -77,6 +77,9 @@ class User(UserMixin, db.Model):
         }
         db.session.commit()
 
+
+
+
 class Summary(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='CASCADE'), nullable=False)
@@ -221,11 +224,15 @@ class Email(db.Model):
     email_date = db.Column(db.DateTime, nullable=False)
     is_excluded = db.Column(db.Boolean, default=False)
     created_at = db.Column(db.DateTime, default=datetime.now)
-    
+    cleaned_content = db.Column(db.Text, nullable=True)
+    sender = db.Column(db.Text, nullable=True)
+    text_content = db.Column(db.Text, nullable=True)
+    is_summarized = db.Column(db.Boolean, default=False)
     # Relationships
     topics = db.relationship('Topic', backref='email', lazy=True)
     sources = db.relationship('Source', backref='email', lazy=True)
     user = db.relationship('User', backref=db.backref('emails', lazy=True))
+
 
     has_audio = db.Column(db.Boolean, default=False)
     audio_text = db.Column(db.Text, nullable=True)  # New field for storing audio-friendly text

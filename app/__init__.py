@@ -1,3 +1,6 @@
+
+import threading
+import time
 from flask import Flask
 from flask_login import LoginManager
 from config import Config
@@ -9,6 +12,11 @@ login_manager = LoginManager()
 @login_manager.user_loader
 def load_user(id):
     return User.query.get(int(id))
+
+
+
+
+
 
 def create_app():
     app = Flask(__name__)
@@ -33,5 +41,6 @@ def create_app():
     from app.async_processor import AsyncProcessor
     async_processor = AsyncProcessor(app)
     async_processor.start()
+    
     
     return app

@@ -722,7 +722,35 @@ def generate_summary_audio():
                     logging.info(f"Failed to generate audio for summary {summary.id}")
                     return False
                     
-                    
+def collect_and_summarize_preprocessed_emails():
+    """
+    Collect and summarize preprocessed emails for all users.
+    """
+    voice_generator = VoiceClipGenerator()
+    app = create_app()
+    with app.app_context():
+        summary_generator = SummaryGenerator()
+        users = User.query.filter(User.mailslurp_inbox_id.isnot(None)).all()
+        for user in users:
+            summary = summary_generator.collect_and_summarize_preprocessed_emails(user)
+            if summary:
+                success = voice_generator.summary_to_audio(summary)
+                if success:
+                    logger.info(f"Successfully generated audio for summary {summary.id}")
+                    email_sender = EmailSender()
+                    email_body = f"""
+            Hello,
+
+            Your new summary is ready. You can view it by clicking the link below:
+            {url_for('main.read_summary', summary_id=summary.id, _external=True)}
+
+            Best regards,
+            Hermes Team
+            """
+                    email_sender.send_email(user.email, "Your New Summary is Ready", email_body)
+                    logger.info(f"Sent email with link to new summary {summary.id} to user {user.email}")
+                
+
 
 def process_recent_emails_and_create_newsletters():
     """
@@ -804,6 +832,7 @@ if __name__ == "__main__":
         print("- list_users")
         print("- collect_summarize_and_voice_emails")
         print("- process_recent_emails_and_create_newsletters")
+        print("- collect_and_summarize_preprocessed_emails")
         sys.exit(1)
     
     task_name = sys.argv[1]
@@ -839,7 +868,8 @@ if __name__ == "__main__":
         collect_summarize_and_voice_emails()
     elif task_name == "process_recent_emails_and_create_newsletters":
         process_recent_emails_and_create_newsletters()
-
+    elif task_name == 'collect_and_summarize_preprocessed_emails':
+        collect_and_summarize_preprocessed_emails()
     else:
         print(f"Unknown task: {task_name}")
         print("Available tasks:")
@@ -856,4 +886,5 @@ if __name__ == "__main__":
         print("- generate_summary_audio")
         print("- collect_summarize_and_voice_emails")
         print("- process_recent_emails_and_create_newsletters")
+        print("- collect_and_summarize_preprocessed_emails")
         sys.exit(1)

@@ -6,6 +6,7 @@ from app.models import AudioFile, Email, News, Newsletter, Source, Summary, Topi
 from app.mailbox_accessor import MailboxAccessor
 from bs4 import BeautifulSoup
 import openai
+from sqlalchemy import select
 from pydantic import BaseModel, Field
 from config import Config
 
@@ -139,7 +140,55 @@ class SummaryGenerator:
             
         return start_date, end_date
 
+    def collect_and_summarize_preprocessed_emails(self, user):
+        """
+        Collect and summarize preprocessed emails from a given inbox starting from a specified date.
+        Uses multiple summarization functions to generate different summaries.
         
+        Parameters:
+        - user_id: The ID of the user to collect emails from.
+        """
+    
+        # Find all emails for this user that haven't been part of summaries yet
+        unsummarized_emails = Email.query.filter_by(user_id=user.id, is_summarized=False).all()
+        if len(unsummarized_emails) == 0:
+            logging.info(f"No unsummarized emails found for user: {user.email}")
+            # return latest summary for user
+            latest_summary = Summary.query.filter_by(user_id=user.id).order_by(Summary.date_published.desc()).first()
+            if latest_summary and not latest_summary.has_audio:
+                return latest_summary
+            else:
+                logging.info(f"No summaries found for user: {user.email}")
+                return None
+                    
+        logging.info(f"Summarizing {len(unsummarized_emails)} emails")
+        summary, sources, newsletter_names = self.summarize_content([email.id for email in unsummarized_emails])
+        
+        new_summary = Summary(
+            user_id=user.id,
+            title=f"News Brief - {datetime.now().strftime('%m %d')}",
+            from_date=min(email.email_date for email in unsummarized_emails),
+            to_date=max(email.email_date for email in unsummarized_emails),
+            has_audio=False,
+            date_published=datetime.now(),
+            status='completed',
+            key_points=[{"text": point.text} for point in summary.key_points],
+            sections=[{"header": section.header, "content": section.content} for section in summary.sections],
+            sources=[{"url": source.url, "date": source.date, "title": source.title, "publisher": source.publisher} for source in sources],
+            newsletter_names=list(newsletter_names),
+            email_ids=[email.id for email in unsummarized_emails],
+        )
+        
+        # Add the new summary to the database
+        db.session.add(new_summary)
+        
+        # Update the emails to be summarized
+        for email in unsummarized_emails:
+            email.is_summarized = True
+        db.session.commit()
+        
+        return new_summary
+
     def collect_and_summarize_emails(self, user_id, start_date):
         """
         Collect and summarize emails from a given inbox starting from a specified date.
@@ -418,8 +467,6 @@ class SummaryGenerator:
 
 
 
-
-
     def fetch_emails(self, inbox_id, start_date, end_date):
         mailbox = MailboxAccessor()
         
@@ -689,6 +736,8 @@ class SummaryGenerator:
         2. Make the text flow naturally when read aloud
         3. Convert any visual elements (bullets, formatting) into spoken transitions
         4. Add appropriate pauses and transitions between sections
+        5. Do not add any additional text or commentary
+        6. Do not sound overly enthusiast and don't use workds like 'exciting' or 'amazing'
         """
         
         response = self.openai_client.chat.completions.create(
@@ -707,7 +756,7 @@ class SummaryGenerator:
 
     def newsletter_sender(self, email_raw) -> str:
         prompt = f"""
-        Your task is to find the initial sender of a newsletter. You will be given the raw content of an email that may have been forwarded, you will need to identify the original sender.
+        Your task is to find the original sender of a newsletter. You will be given the raw content of an email that may have been forwarded, you will need to identify the original sender.
         Here's an example of a forwarded email, where the original sender is `TLDR AI <dan@tldrnewsletter.com>`:
             ```
             'sender': {{'email_address': 'jalemieux@gmail.com',
