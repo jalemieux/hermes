@@ -37,10 +37,15 @@ def create_app():
     from app.routes import main
     app.register_blueprint(main)
     
+    from app.agents_manager import AgentManager
+    app.agent_manager = AgentManager()
+    
+
     # Start the AsyncProcessor for background processing
     from app.async_processor import AsyncProcessor
     async_processor = AsyncProcessor(app)
     async_processor.start()
+
     
     
     return app

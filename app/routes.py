@@ -2,6 +2,7 @@
 from flask import Blueprint, render_template, redirect, url_for, request, flash, session, current_app, jsonify, send_file
 from flask_login import login_user, logout_user, login_required, current_user
 from openai import OpenAI
+from app.agents_manager import NewsChatAgent, SmarterNewsChatAgent
 from app.mailbox_accessor import MailboxAccessor
 from app.models import Newsletter, db, User, Summary, Email, AudioFile, Invitation, ReadStatus, AsyncProcessingRequest
 from app.oauth import create_google_oauth_flow
@@ -16,7 +17,6 @@ import io
 from app.summary_generator import SummaryGenerator
 from app.voice_generator import VoiceClipGenerator
 from app.email_sender import EmailSender
-logging.basicConfig(level=logging.DEBUG)
 
 from pytz import timezone
 
@@ -316,6 +316,9 @@ def read_summary(summary_id):
         flash('Summary not found', 'error')
         return redirect(url_for('main.dashboard'))
     
+    if summary.user_id != current_user.id:
+        flash('Unauthorized access', 'error')
+        return redirect(url_for('main.dashboard'))
     # Create the summary dictionary with the same structure as the mock
     summary_json = {
         'id': summary.id,
@@ -358,8 +361,48 @@ def read_summary(summary_id):
         db.session.add(read_status)
         db.session.commit()
     
+    # chat box initialization
+    # Get content from summary's emails
+    email_ids = [email_id for email_id in summary.email_ids] if summary.email_ids else []
+    emails = Email.query.filter(Email.id.in_(email_ids)).all()
+    content = ""
+    for email in emails:
+        content += email.to_md()
+    agent_name = "news_agent_"+str(summary.id)        
+    current_app.agent_manager.add_agent(SmarterNewsChatAgent(agent_name, context=content))
+    
+    # get the summary's emails
     return render_template('summary.html', summary=summary_json)
 
+@main.route('/chat/send', methods=['POST'])
+@login_required
+def chat_send():
+    # Ensure the correct user
+    summary_id = request.json.get('summary_id')
+    summary = Summary.query.get(summary_id)
+    if not summary or summary.user_id != current_user.id:
+        return jsonify({
+            'status': 'error',
+            'message': 'Unauthorized access'
+        }), 403
+    
+    message = request.json.get('message')
+    if not message:
+        logging.error("No message provided")
+        return jsonify({
+            'status': 'error',
+            'message': 'No message provided'
+        }), 400
+
+    agent = current_app.agent_manager.get_agent('news_agent_'+str(summary.id))
+    print("####", agent.messages)
+    response = agent.ask(message)
+    
+    return jsonify({
+        'status': 'success',
+        'message': response
+    }), 200
+    
 @main.route('/audio/summary/<int:summary_id>')
 @login_required
 def listen_summary(summary_id):
@@ -703,49 +746,9 @@ is not present or cannot be clearly inferred from the context window.
     
     return render_template('chat.html', initial_message=initial_message)  # Pass to template
 
-@main.route('/chat/send', methods=['POST'])
-@login_required
-def chat_send():
-    try:
-        message = request.json.get('message')
-        if not message:
-            return jsonify({
-                'status': 'error',
-                'message': 'No message provided'
-            }), 400
 
-        messages = session.get('chat_messages', [])
-        if not messages:
-            return jsonify({
-                'status': 'error',
-                'message': 'No email context available'
-            }), 400
-        current_app.logger.info(f"Chat messages: {messages}")
 
-        messages.append({"role": "user", "content": message})   
-        openai_client = OpenAI()
-        completion = openai_client.chat.completions.create(
-            model="gpt-4o-mini",
-            messages=messages,
-        )
-        
-        # Here you would process the message and generate a response
-        # For now, we'll just echo it back with a mock delay
-        response = completion.choices[0].message.content
-        messages.append({"role": "assistant", "content": response})
-        session['chat_messages'] = messages
-        
-        return jsonify({
-            'status': 'success',
-            'message': response
-        }), 200
-        
-    except Exception as e:
-        current_app.logger.error(f"Chat processing failed: {str(e)}")
-        return jsonify({
-            'status': 'error',
-            'message': f'Failed to process message. Please try again.'
-        }), 400
+
 
 @main.route('/email/<int:email_id>')
 @login_required

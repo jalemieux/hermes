@@ -82,7 +82,7 @@
                     </button>
                 </form>
             </div>
-            <div id="chat-messages" class="hidden h-[500px] overflow-y-auto p-4 space-y-4">
+            <div id="chat-messages" class="hidden max-h-[300px] overflow-y-auto p-4 space-y-4">
                 <!-- Initial message -->
                 {% if chat_messages %}
                 <div class="flex justify-start">
@@ -225,6 +225,7 @@
         
         messageDiv.appendChild(messageContent);
         chatMessages.appendChild(messageDiv);
+        chatMessages.style.height = 'auto';
         chatMessages.scrollTop = chatMessages.scrollHeight;
     }
 
@@ -247,7 +248,7 @@
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({ message }),
+                body: JSON.stringify({ message, summary_id: {{ summary.id }} }),
             });
             
             const data = await response.json();
