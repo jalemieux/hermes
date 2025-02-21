@@ -55,16 +55,16 @@ def test_send_email():
             email_sender = EmailSender()
             success = email_sender.send_email(
                 to_email="jalemieux@gmail.com",  # Replace with your test email
-                subject="Test Email from Hermes",
+                subject="Test Email from Clarion",
                 body="""
                 Hello!
                 
-                This is a test email from the Hermes password reset system.
+                This is a test email from the Clarion password reset system.
                 
                 If you received this email, the Gmail SMTP configuration is working correctly.
                 
                 Best regards,
-                Hermes Team
+                Clarion Team
                 """
             )
             

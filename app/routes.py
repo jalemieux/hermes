@@ -633,7 +633,7 @@ def forgot_password():
                 email_sender = EmailSender()
                 email_sender.send_email(
                     to_email=user.email,
-                    subject="Reset Your Password - Hermes",
+                    subject="Reset Your Password - Clarion",
                     body=f"""
                     Hello,
                     
@@ -644,7 +644,7 @@ def forgot_password():
                     This link will expire in 1 hour. If you didn't request this reset, please ignore this email.
                     
                     Best regards,
-                    Hermes Team
+                    Clarion Team
                     """
                 )
                 flash('Password reset instructions have been sent to your email.', 'success')
@@ -908,18 +908,18 @@ def invite():
             email_sender = EmailSender()
             email_sender.send_email(
                 to_email=email,
-                subject="You're invited to join Hermes",
+                subject="You're invited to join Clarion",
                 body=f"""
                 Hello,
                 
-                You've been invited to join Hermes! Click the link below to create your account:
+                You've been invited to join Clarion! Click the link below to create your account:
                 
                 {invitation_url}
                 
                 This invitation will expire in 7 days.
                 
                 Best regards,
-                Hermes Team
+                Clarion Team
                 """
             )
             

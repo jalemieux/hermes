@@ -69,7 +69,7 @@ You can read your full summary here:
 {summary_url}
 
 Best regards,
-Hermes Team
+Clarion Team
                     """
                     
                     email_sender.send_email(
@@ -172,7 +172,7 @@ def collect_summarize_and_voice_emails():
             {url_for('main.read_summary', summary_id=summary.id, _external=True)}
 
             Best regards,
-            Hermes Team
+            Clarion Team
             """
             email_sender.send_email(user.email, "Your New Summary is Ready", email_body)
             logger.info(f"Sent email with link to new summary {summary.id} to user {user.email}")
@@ -628,7 +628,7 @@ Period: {new_summary.from_date.strftime('%B %d, %Y')} to {new_summary.to_date.st
 You can read your full summary here:
 {summary_url}
 Best regards,
-Hermes Team
+Clarion Team
                     """
                     email_sender.send_email(
                         to_email=user.email,
@@ -745,7 +745,7 @@ def collect_and_summarize_preprocessed_emails():
             {url_for('main.read_summary', summary_id=summary.id, _external=True)}
 
             Best regards,
-            Hermes Team
+            Clarion Team
             """
                     email_sender.send_email(user.email, "Your New Summary is Ready", email_body)
                     logger.info(f"Sent email with link to new summary {summary.id} to user {user.email}")
