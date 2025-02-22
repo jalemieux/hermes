@@ -40,11 +40,13 @@ def create_app():
     from app.agents_manager import AgentManager
     app.agent_manager = AgentManager()
     
-
     # Start the AsyncProcessor for background processing
-    from app.async_processor import AsyncProcessor
-    async_processor = AsyncProcessor(app)
-    async_processor.start()
+    from app.async_processor import AsyncEmailProcessor, AsyncSummaryPruner
+    async_email_processor = AsyncEmailProcessor(app)
+    async_email_processor.start()
+
+    async_summary_pruner = AsyncSummaryPruner(app)
+    async_summary_pruner.start()
 
     
     
