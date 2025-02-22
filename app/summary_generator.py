@@ -163,8 +163,10 @@ class SummaryGenerator:
         - user_id: The ID of the user to collect emails from.
         """
     
-        # Find all emails for this user that haven't been part of summaries yet
-        unsummarized_emails = Email.query.filter_by(user_id=user.id, is_summarized=False).all()
+        # Join both tables on email.sender == newsletter.name where newsletter.is_active is True for this user
+        unsummarized_emails = db.session.query(Email).join(Newsletter, Email.sender == Newsletter.name)\
+            .filter(Email.user_id == user.id, Email.is_summarized == False, Newsletter.user_id == user.id, Newsletter.is_active == True).all()
+  
         if len(unsummarized_emails) == 0:
             logging.info(f"No unsummarized emails found for user: {user.email}")
             # return latest summary for user

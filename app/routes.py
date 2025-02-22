@@ -66,8 +66,9 @@ def signup():
         
         mailbox_accessor = MailboxAccessor()
         inbox_email_address, inbox_id = mailbox_accessor.create_mailbox()
-        mailbox_accessor.create_forwarder(inbox_id, user.email)
-        
+        if not mailbox_accessor.create_forwarder(inbox_id, user.email):
+            logging.error('Failed to create email forwarder')
+            
         user.mailslurp_email_address = inbox_email_address
         user.mailslurp_inbox_id = inbox_id
 
@@ -192,7 +193,7 @@ def dashboard():
     )
 
     # Get newsletters from the database
-    newsletters = Newsletter.query.filter(Newsletter.user_id != current_user.id).distinct().all()
+    newsletters = Newsletter.query.filter(Newsletter.user_id == current_user.id).distinct().all()
 
     # # Calculate the start date as the last occurrence of 7 AM PST
     # pst = timezone('America/Los_Angeles')
@@ -825,6 +826,7 @@ def get_audio_file_email(email_id):
 @main.route('/api/newsletter/<int:newsletter_id>/toggle', methods=['POST'])
 @login_required
 def toggle_newsletter(newsletter_id):
+    logging.info(f"Toggling newsletter {newsletter_id}")
     newsletter = Newsletter.query.get_or_404(newsletter_id)
     
     # Verify the newsletter belongs to the current user
@@ -835,7 +837,7 @@ def toggle_newsletter(newsletter_id):
         # Toggle the is_active status
         newsletter.is_active = not newsletter.is_active
         db.session.commit()
-        
+        logging.info(f"Newsletter {newsletter.name} is now {newsletter.is_active}")
         return jsonify({
             'status': 'success',
             'message': f'Newsletter {"activated" if newsletter.is_active else "deactivated"} successfully',

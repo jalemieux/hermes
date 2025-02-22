@@ -34,7 +34,16 @@ class AsyncSummaryPruner:
             time.sleep(3600)
 
 class AsyncEmailProcessor:
-    def __init__(self, app):
+    _instance = None
+
+    def __new__(cls, app):
+        if cls._instance is None:
+            cls._instance = super(AsyncEmailProcessor, cls).__new__(cls)
+            cls._instance._initialize(app)
+        return cls._instance
+
+    def _initialize(self, app):
+        logging.info("Initializing AsyncEmailProcessor!!!!")
         self.app = app
         self.thread = threading.Thread(target=self.run)
         self.thread.daemon = True
@@ -49,3 +58,4 @@ class AsyncEmailProcessor:
             for user in User.query.all():
                 email_processor.process_user_emails(user.id)
             time.sleep(300)
+           

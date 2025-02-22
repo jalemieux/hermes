@@ -195,32 +195,31 @@
             </div>
             
             <div class="rounded-lg border border-gray-200 bg-white p-6">
-                <h2 class="text-xl font-semibold">Your News Sources</h2>
+                <h3 class="text-lg font-semibold">Your News Sources</h3>
                 <div class="mt-4 divide-y divide-gray-200">
+                    <div class="flex justify-between p-4 bg-gray-100 rounded-t-lg">
+                        <span class="text-xs font-medium text-gray-500">Newsletter</span>
+                        <span class="text-xs font-medium text-gray-500">Include in Next Briefs</span>
+                    </div>
                     {% if newsletters %}
                         {% for newsletter in newsletters %}
-                        <div class="flex items-center justify-between py-4">
-                            <div>
-                                <h3 class="font-medium text-gray-900">{{ newsletter.name }}</h3>
-                                <p class="text-sm text-gray-600">From: {{ newsletter.sender }}</p>
-                            </div>
-                            <div class="flex items-center">
-                                <label class="relative inline-flex items-center cursor-pointer">
-                                    <input type="checkbox"
-                                           name="newsletter-toggle"
-                                           id="newsletter-toggle-{{ newsletter.id }}"
-                                           {% if newsletter.is_active %}checked{% endif %}
-                                           class="sr-only peer newsletter-toggle"
-                                           data-newsletter-id="{{ newsletter.id }}"
-                                    >
-                                    <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer 
-                                              peer-checked:after:translate-x-full peer-checked:after:border-white 
-                                              after:content-[''] after:absolute after:top-[2px] after:left-[2px] 
-                                              after:bg-white after:border-gray-300 after:border after:rounded-full 
-                                              after:h-5 after:w-5 after:transition-all peer-checked:bg-gray-900">
-                                    </div>
-                                </label>
-                            </div>
+                        <div class="flex items-center justify-between p-4 bg-white shadow-md">
+                            <span class="text-sm font-medium text-gray-800">{{ newsletter.name }}</span>
+                            <label class="relative inline-flex items-center cursor-pointer">
+                                <input type="checkbox"
+                                       name="newsletter-toggle"
+                                       id="newsletter-toggle-{{ newsletter.id }}"
+                                       {% if newsletter.is_active %}checked{% endif %}
+                                       class="sr-only peer newsletter-toggle"
+                                       data-newsletter-id="{{ newsletter.id }}"
+                                >
+                                <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer 
+                                          peer-checked:after:translate-x-full peer-checked:after:border-white 
+                                          after:content-[''] after:absolute after:top-[2px] after:left-[2px] 
+                                          after:bg-white after:border-gray-300 after:border after:rounded-full 
+                                          after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600">
+                                </div>
+                            </label>
                         </div>
                         {% endfor %}
                     {% else %}

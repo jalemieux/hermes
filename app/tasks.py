@@ -5,6 +5,7 @@ import logging
 
 from pydantic import BaseModel
 from app import create_app
+from app.email_processor import EmailProcessor
 from app.mailbox_accessor import MailboxAccessor
 from app.models import AudioFile, News, Source, Topic, User, Summary, db, TaskExecution, Newsletter, Email
 from app.summary_generator import SummaryGenerator, convert_summary_to_text
@@ -752,64 +753,75 @@ def collect_and_summarize_preprocessed_emails():
                 
 
 
-def process_recent_emails_and_create_newsletters():
+# def process_recent_emails_and_create_newsletters():
+#     """
+#     Fetch emails from the last 5 days and create newsletter records for each unique newsletter.
+#     This function:
+#     1. Gets all users with configured mailboxes
+#     2. For each user, fetches emails from last 5 days
+#     3. For each email, identifies the newsletter name
+#     4. Creates newsletter records if they don't already exist
+#     """
+#     app = create_app()
+    
+#     with app.app_context():
+#         logger.info("Starting process_recent_emails_and_create_newsletters task")
+        
+#         users = User.query.filter(User.mailslurp_inbox_id.isnot(None)).all()
+#         mailbox_accessor = MailboxAccessor()
+#         summary_generator = SummaryGenerator()
+        
+#         for user in users:
+#             logger.info(f"Processing user {user.id}")
+#             inbox_id = user.mailslurp_inbox_id
+            
+#             # Fetch emails from last 5 days
+#             emails = mailbox_accessor.get_emails_from_last_n_days(inbox_id, 5)
+#             logger.info(f"Found {len(emails)} emails for user {user.id}")
+            
+#             # Track newsletters we've already processed
+#             newsletter_dict = {}
+            
+#             for email in emails:
+#                 newsletter_name = summary_generator.newsletter_name(email)
+#                 logger.info(f"Identified email as newsletter: {newsletter_name}")
+                
+#                 # Check if we've already processed this newsletter name
+#                 if newsletter_name not in newsletter_dict:
+#                     # Check if newsletter already exists in database
+#                     existing_newsletter = Newsletter.query.filter_by(
+#                         user_id=user.id,
+#                         name=newsletter_name
+#                     ).first()
+                    
+#                     if not existing_newsletter:
+#                         # Create new newsletter record
+#                         new_newsletter = Newsletter(
+#                             name=newsletter_name,
+#                             is_active=True,
+#                             user_id=user.id,
+#                             sender=email.sender.email_address,
+#                             latest_date=datetime.now()
+#                         )
+#                         db.session.add(new_newsletter)
+#                         db.session.commit()
+#                         logger.info(f"Created new active newsletter: {newsletter_name}")
+                    
+#                     newsletter_dict[newsletter_name] = True
+        
+#         TaskExecution.record_execution('process_recent_emails_and_create_newsletters', 'success')
+#         logger.info("Successfully completed process_recent_emails_and_create_newsletters task")
+
+def process_users_emails():
     """
-    Fetch emails from the last 5 days and create newsletter records for each unique newsletter.
-    This function:
-    1. Gets all users with configured mailboxes
-    2. For each user, fetches emails from last 5 days
-    3. For each email, identifies the newsletter name
-    4. Creates newsletter records if they don't already exist
+    Process emails for all users.
     """
     app = create_app()
-    
     with app.app_context():
-        logger.info("Starting process_recent_emails_and_create_newsletters task")
-        
+        email_processor = EmailProcessor()
         users = User.query.filter(User.mailslurp_inbox_id.isnot(None)).all()
-        mailbox_accessor = MailboxAccessor()
-        summary_generator = SummaryGenerator()
-        
         for user in users:
-            logger.info(f"Processing user {user.id}")
-            inbox_id = user.mailslurp_inbox_id
-            
-            # Fetch emails from last 5 days
-            emails = mailbox_accessor.get_emails_from_last_n_days(inbox_id, 5)
-            logger.info(f"Found {len(emails)} emails for user {user.id}")
-            
-            # Track newsletters we've already processed
-            newsletter_dict = {}
-            
-            for email in emails:
-                newsletter_name = summary_generator.newsletter_name(email)
-                logger.info(f"Identified email as newsletter: {newsletter_name}")
-                
-                # Check if we've already processed this newsletter name
-                if newsletter_name not in newsletter_dict:
-                    # Check if newsletter already exists in database
-                    existing_newsletter = Newsletter.query.filter_by(
-                        user_id=user.id,
-                        name=newsletter_name
-                    ).first()
-                    
-                    if not existing_newsletter:
-                        # Create new newsletter record
-                        new_newsletter = Newsletter(
-                            name=newsletter_name,
-                            is_active=True,
-                            user_id=user.id,
-                            sender=email.sender.email_address,
-                            latest_date=datetime.now()
-                        )
-                        db.session.add(new_newsletter)
-                        db.session.commit()
-                        logger.info(f"Created new active newsletter: {newsletter_name}")
-                    
-                    newsletter_dict[newsletter_name] = True
-        
-        TaskExecution.record_execution('process_recent_emails_and_create_newsletters', 'success')
-        logger.info("Successfully completed process_recent_emails_and_create_newsletters task")
+            email_processor.process_user_emails(user.id)
 
 if __name__ == "__main__":
     import sys
@@ -817,74 +829,78 @@ if __name__ == "__main__":
 
     
     if len(sys.argv) < 2:
-        print("Please provide a task name as argument")
-        print("Available tasks:")
-        print("- daily_summaries")
-        print("- generate_email_audio")
-        print("- process_inbox_emails")
-        print("- identify_newsletter_name")
-        print("- create_newsletters_from_emails")
-        print("- recreate_newsletters_from_inbox")
-        print("- delete_emails_without_audio")
-        print("- generate_weekly_summaries")
-        print("- generate_summary_audio")
-        print("- print_last_email")
-        print("- list_users")
-        print("- collect_summarize_and_voice_emails")
-        print("- process_recent_emails_and_create_newsletters")
+        # print("Please provide a task name as argument")
+        # print("Available tasks:")
+        # print("- daily_summaries")
+        # print("- generate_email_audio")
+        # print("- process_inbox_emails")
+        # print("- identify_newsletter_name")
+        # print("- create_newsletters_from_emails")
+        # print("- recreate_newsletters_from_inbox")
+        # print("- delete_emails_without_audio")
+        # print("- generate_weekly_summaries")
+        # print("- generate_summary_audio")
+        # print("- print_last_email")
+        # print("- list_users")
+        # print("- collect_summarize_and_voice_emails")
+        # print("- process_recent_emails_and_create_newsletters")
         print("- collect_and_summarize_preprocessed_emails")
+        print("- process_users_emails")
         sys.exit(1)
     
     task_name = sys.argv[1]
     
-    if task_name == "daily_summaries":
-        generate_daily_summaries()
-    elif task_name == "generate_email_audio":
-        generate_email_audio()
-    elif task_name == "process_inbox_emails":
-        process_inbox_emails()
-    elif task_name == "identify_newsletter_name":
-        identify_newsletter_name()
-    elif task_name == "create_newsletters_from_emails":
-        create_newsletters_from_emails()
-    elif task_name == "recreate_newsletters_from_inbox":
-        recreate_newsletters_from_inbox()
-    elif task_name == "delete_emails_without_audio":
-        delete_emails_without_audio()
-    elif task_name == "generate_weekly_summaries":
-        generate_weekly_summaries()
-    elif task_name == "generate_summary_audio":
-        generate_summary_audio()
-    elif task_name == "print_last_email":
-        if len(sys.argv) < 3:
-            print("Please provide a user_id as argument")
-            print("Usage: python -m app.tasks print_last_email <user_id>")
-            sys.exit(1)
-        user_id = int(sys.argv[2])
-        print_last_email(user_id)
-    elif task_name == "list_users":
-        list_users()
-    elif task_name == "collect_summarize_and_voice_emails":
-        collect_summarize_and_voice_emails()
-    elif task_name == "process_recent_emails_and_create_newsletters":
-        process_recent_emails_and_create_newsletters()
-    elif task_name == 'collect_and_summarize_preprocessed_emails':
+    # if task_name == "daily_summaries":
+    #     generate_daily_summaries()
+    # elif task_name == "generate_email_audio":
+    #     generate_email_audio()
+    # elif task_name == "process_inbox_emails":
+    #     process_inbox_emails()
+    # elif task_name == "identify_newsletter_name":
+    #     identify_newsletter_name()
+    # elif task_name == "create_newsletters_from_emails":
+    #     create_newsletters_from_emails()
+    # elif task_name == "recreate_newsletters_from_inbox":
+    #     recreate_newsletters_from_inbox()
+    # elif task_name == "delete_emails_without_audio":
+    #     delete_emails_without_audio()
+    # elif task_name == "generate_weekly_summaries":
+    #     generate_weekly_summaries()
+    # elif task_name == "generate_summary_audio":
+    #     generate_summary_audio()
+    # elif task_name == "print_last_email":
+    #     if len(sys.argv) < 3:
+    #         print("Please provide a user_id as argument")
+    #         print("Usage: python -m app.tasks print_last_email <user_id>")
+    #         sys.exit(1)
+    #     user_id = int(sys.argv[2])
+    #     print_last_email(user_id)
+    # elif task_name == "list_users":
+    #     list_users()
+    # elif task_name == "collect_summarize_and_voice_emails":
+    #     collect_summarize_and_voice_emails()
+    # elif task_name == "process_recent_emails_and_create_newsletters":
+    #     process_recent_emails_and_create_newsletters()
+    if task_name == 'collect_and_summarize_preprocessed_emails':
         collect_and_summarize_preprocessed_emails()
+    elif task_name == 'process_users_emails':
+        process_users_emails()
     else:
         print(f"Unknown task: {task_name}")
         print("Available tasks:")
-        print("- daily_summaries")
-        print("- generate_email_audio")
-        print("- process_inbox_emails")
-        print("- identify_newsletter_name")
-        print("- create_newsletters_from_emails")
-        print("- recreate_newsletters_from_inbox")
-        print("- delete_emails_without_audio")
-        print("- print_last_email")
-        print("- list_users")
-        print("- generate_weekly_summaries")
-        print("- generate_summary_audio")
-        print("- collect_summarize_and_voice_emails")
-        print("- process_recent_emails_and_create_newsletters")
+        # print("- daily_summaries")
+        # print("- generate_email_audio")
+        # print("- process_inbox_emails")
+        # print("- identify_newsletter_name")
+        # print("- create_newsletters_from_emails")
+        # print("- recreate_newsletters_from_inbox")
+        # print("- delete_emails_without_audio")
+        # print("- print_last_email")
+        # print("- list_users")
+        # print("- generate_weekly_summaries")
+        # print("- generate_summary_audio")
+        # print("- collect_summarize_and_voice_emails")
+        # print("- process_recent_emails_and_create_newsletters")
         print("- collect_and_summarize_preprocessed_emails")
+        print("- process_users_emails")
         sys.exit(1)

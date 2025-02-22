@@ -42,6 +42,7 @@ def create_app():
     
     # Start the AsyncProcessor for background processing
     from app.async_processor import AsyncEmailProcessor, AsyncSummaryPruner
+    
     async_email_processor = AsyncEmailProcessor(app)
     async_email_processor.start()
 

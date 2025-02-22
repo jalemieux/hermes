@@ -227,16 +227,17 @@ class Email(db.Model):
     sender = db.Column(db.Text, nullable=True)
     text_content = db.Column(db.Text, nullable=True)
     is_summarized = db.Column(db.Boolean, default=False)
+
     # Relationships
     topics = db.relationship('Topic', backref='email', lazy=True)
     sources = db.relationship('Source', backref='email', lazy=True)
     user = db.relationship('User', backref=db.backref('emails', lazy=True))
 
-
     has_audio = db.Column(db.Boolean, default=False)
     audio_text = db.Column(db.Text, nullable=True)  # New field for storing audio-friendly text
 
     #audio_creation_state = db.Column(db.String(20), default='none')  # Possible values: 'none', 'started', 'completed'
+
 
     def to_newsletter(self):
         """Convert the email record to a Newsletter object format"""
@@ -388,5 +389,5 @@ class AsyncProcessingRequest(db.Model):
     type = db.Column(db.String(50), nullable=False)
     status = db.Column(db.String(50), default='pending')
     created_at = db.Column(db.DateTime, default=datetime.now)
-
     email = db.relationship('Email', backref=db.backref('async_requests', lazy=True))
+

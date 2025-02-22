@@ -179,6 +179,22 @@ class EmailProcessor:
             # find the email newsletter name
             newsletter_sender = self.newsletter_sender(f"{str(email.sender)} {str(email.subject)} {str(email.text_excerpt)} {str(email.recipients)}")
 
+            # find the newsletter source
+            newsletter_match = Newsletter.query.filter_by(name=newsletter_sender).first()
+            
+            if not newsletter_match:
+                logging.info(f"Creating new newsletter: {newsletter_sender}")
+                new_newsletter = Newsletter(
+                    sender=newsletter_sender, 
+                    name=newsletter_sender, 
+                    subject=email.subject, 
+                    user_id=user_id,
+                    latest_date=email.created_at
+                )
+                db.session.add(new_newsletter)
+                db.session.commit()
+                newsletter_match = new_newsletter
+
             logging.info(f"Newsletter name: {newsletter_sender}")
             #newsletter_should_be_processed = users_newsletter_dict[newsletter_sender]
  
