@@ -139,6 +139,20 @@ class SummaryGenerator:
             start_date = end_date - timedelta(days=7)
             
         return start_date, end_date
+    
+    def get_formatted_date(self, date):
+        # Get day and month
+        day = date.day
+        month = date.strftime("%B")  # Full month name
+        
+        # Determine ordinal suffix
+        if 10 <= day % 100 <= 20:
+            suffix = "th"
+        else:
+            suffix = {1: "st", 2: "nd", 3: "rd"}.get(day % 10, "th")
+        
+        return f"{month} {day}{suffix}"
+
 
     def collect_and_summarize_preprocessed_emails(self, user):
         """
@@ -166,7 +180,7 @@ class SummaryGenerator:
         
         new_summary = Summary(
             user_id=user.id,
-            title=f"News Brief - {datetime.now().strftime('%m %d')}",
+            title=f"{self.get_formatted_date(datetime.now())}",
             from_date=min(email.email_date for email in unsummarized_emails),
             to_date=max(email.email_date for email in unsummarized_emails),
             has_audio=False,
